@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status de habitaciones — Eleton Resort &amp; SPA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:wght@500;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{--verde-oscuro:#0d543f;--verde:#138170;--negro:#252525;--papel:#f2f4f2;--linea:#c9d3cd;}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Montserrat',-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--papel);color:var(--negro);font-size:14px;line-height:1.45}
+  header{background:var(--verde-oscuro);color:#fff;padding:12px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:21px;margin:0}
+  header h1 span{display:block;font-family:'Montserrat',sans-serif;font-weight:400;font-size:12px;opacity:.75}
+  #quien{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:5px;padding:6px 8px;font-family:inherit;font-size:12.5px}
+  #quien option{color:#252525}
+  #conexion{display:flex;align-items:center;gap:7px;font-size:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:5px 12px;cursor:pointer}
+  #conexion .luz{width:9px;height:9px;border-radius:50%;background:#8aa39a;flex:none}
+  #conexion.viva .luz{background:#57d6a4}
+  #conexion.mala .luz{background:#e8896f}
+  .contadores{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .contador{border-radius:6px;padding:5px 11px;min-width:64px;text-align:center;color:#fff}
+  .contador b{display:block;font-size:19px;line-height:1.1}
+  .contador small{font-size:10px;opacity:.9;display:block;line-height:1.2}
+
+  main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;padding:18px 22px 26px;align-items:start}
+  .tarjeta{background:#fff;border:1px solid var(--linea);border-radius:8px;margin-bottom:16px}
+  .tarjeta > h2{margin:0;padding:12px 16px;border-bottom:1px solid var(--linea);font-size:13px;font-weight:700;color:var(--verde-oscuro);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tarjeta > h2 .der{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .cuerpo{padding:14px 16px 18px}
+
+  .filtros{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 16px;background:#fff;border:1px solid var(--linea);border-radius:8px;margin-bottom:16px}
+  .filtros input[type=search]{flex:1;min-width:150px;padding:8px 10px;border:1px solid var(--linea);border-radius:5px;font-family:inherit;font-size:13px}
+  .filtros select{padding:8px 10px;border:1px solid var(--linea);border-radius:5px;font-family:inherit;font-size:13px;background:#fff}
+
+  .grilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;padding:14px 16px 18px}
+  .hab{position:relative;border:none;border-radius:7px;padding:8px 4px 6px;color:#fff;cursor:pointer;font-family:inherit;text-align:center;min-height:64px;display:flex;flex-direction:column;justify-content:center;gap:2px;transition:transform .08s}
+  .hab:active{transform:scale(.96)}
+  .hab:focus-visible{outline:3px solid #252525;outline-offset:2px}
+  .hab b{font-size:19px;font-weight:700;line-height:1}
+  .hab small{font-size:10px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+  .hab .marca{position:absolute;top:4px;right:5px;font-size:12px;line-height:1}
+  .hab.sel{outline:3px solid #252525;outline-offset:1px}
+
+  .leyenda{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid var(--linea);font-size:11.5px;align-items:center;color:#5c6b66}
+  .punto{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+  .campo{margin-bottom:11px}
+  .campo label{display:block;font-size:11.5px;font-weight:600;color:#5c6b66;margin-bottom:4px}
+  .campo input,.campo textarea,.campo select{width:100%;padding:8px 10px;border:1px solid var(--linea);border-radius:5px;font-family:inherit;font-size:13.5px;color:var(--negro);background:#fff}
+  .campo textarea{resize:vertical;min-height:64px}
+  .campo input:focus,.campo textarea:focus,.campo select:focus{outline:2px solid var(--verde);outline-offset:-1px;border-color:var(--verde)}
+  .estados{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+  .bEstado{border:2px solid transparent;border-radius:6px;padding:10px 8px;color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;line-height:1.25}
+  .bEstado.activo{border-color:#252525;box-shadow:inset 0 0 0 2px #fff}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 14px;border-radius:5px;border:1px solid transparent;cursor:pointer}
+  .btn-chico{font-size:11.5px;padding:6px 10px}
+  .btn-primario{background:var(--verde-oscuro);color:#fff}
+  .btn-primario:hover{background:#0a422f}
+  .btn-secundario{background:#fff;color:var(--negro);border-color:var(--linea)}
+  .btn-secundario:hover{background:#f0f3f1}
+  .btn-rojo{background:#fff;color:#a83228;border-color:#e0bab5}
+  .acciones{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .vacio{color:#7d8a85;font-size:13px}
+  .chip{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:3px 9px;border-radius:20px}
+  .pedido-caja{background:#fdf8e8;border:1px solid #e8d89a;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#6b5310}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;font-weight:700;color:#5c6b66;padding:9px 12px;border-bottom:1px solid var(--linea);background:#f7f9f8;white-space:nowrap}
+  td{padding:9px 12px;border-bottom:1px solid #eceeed;vertical-align:middle}
+  tbody tr:hover{background:#f7f9f8}
+  td.hb{font-weight:700;color:var(--verde-oscuro)}
+  .link{background:none;border:none;color:var(--verde);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:2px 4px;text-decoration:underline}
+  .link.rojo{color:#a83228}
+  .aviso{font-size:11.5px;color:#7d8a85;padding:10px 16px;border-top:1px solid var(--linea)}
+  .barra{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--linea);flex-wrap:wrap;align-items:center}
+  .barra input[type=search]{flex:1;min-width:170px;padding:8px 10px;border:1px solid var(--linea);border-radius:5px;font-family:inherit;font-size:13px}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--verde-oscuro);color:#fff;padding:11px 20px;border-radius:6px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all .22s;z-index:60;max-width:90vw;text-align:center}
+  .toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+  .fondo{position:fixed;inset:0;background:rgba(20,32,28,.55);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
+  .fondo.ver{display:flex}
+  .panel{background:#fff;border-radius:10px;width:100%;max-width:460px;max-height:90vh;overflow:auto}
+  .panel h3{margin:0;padding:14px 18px;border-bottom:1px solid var(--linea);font-family:'Playfair Display',Georgia,serif;font-size:19px;color:var(--verde-oscuro)}
+  .panel p{font-size:12.5px;color:#5c6b66;margin:0 0 14px}
+  @media (max-width:980px){main{grid-template-columns:1fr;padding:14px}.contadores{margin-left:0;width:100%}}
+  @media print{header,.filtros,.barra,#ficha,.aviso{display:none}main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Status de habitaciones<span>Eleton Resort &amp; SPA · Housekeeping</span></h1>
+  <select id="quien" title="Quién está usando la pantalla">
+    <option>Gobernanta</option><option>Mucama</option><option>Recepción</option><option>Mantenimiento</option><option>Gerencia</option>
+  </select>
+  <div id="conexion" title="Configurar la conexión con la planilla"><i class="luz"></i><span id="conexionTxt">Modo local</span></div>
+  <div class="contadores" id="contadores"></div>
+</header>
+
+<main>
+  <div>
+    <div class="filtros">
+      <input type="search" id="buscar" placeholder="Buscar habitación">
+      <select id="filtroEstado"><option value="">Todos los estados</option></select>
+      <select id="filtroMucama"><option value="">Todas las mucamas</option></select>
+      <label style="font-size:12.5px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="soloPend" style="width:auto">Solo pendientes</label>
+      <button class="btn btn-secundario btn-chico" id="btnMucamas">Mucamas</button>
+      <button class="btn btn-secundario btn-chico" id="btnCerrarDia">Cerrar el día</button>
+      <button class="btn btn-secundario btn-chico" id="btnExportar">Exportar a Excel</button>
+    </div>
+    <div id="sectores"></div>
+  </div>
+
+  <aside class="tarjeta" id="ficha" style="position:sticky;top:16px">
+    <h2 id="fichaTitulo">Habitación</h2>
+    <div class="cuerpo" id="fichaCuerpo">
+      <p class="vacio">Tocá una habitación para cambiarle el estado, asignar mucama o cargar un pedido especial.</p>
+    </div>
+  </aside>
+
+  <section class="tarjeta" style="grid-column:1 / -1">
+    <h2>Pedidos especiales <span id="cPedidos" style="font-weight:400;color:#7d8a85"></span></h2>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Habitación</th><th>Pedido</th><th>Para cuándo</th><th>Cargó</th><th>Fecha</th><th></th></tr></thead>
+        <tbody id="tablaPedidos"></tbody>
+      </table>
+    </div>
+    <p class="aviso">Las habitaciones con pedido especial aparecen marcadas con ★ en la grilla y con el detalle a la vista al abrirlas.</p>
+  </section>
+
+  <section class="tarjeta" style="grid-column:1 / -1">
+    <h2>Historial del día <span id="cHist" style="font-weight:400;color:#7d8a85"></span></h2>
+    <div class="barra">
+      <input type="search" id="buscarHist" placeholder="Buscar por habitación, estado o persona">
+      <button class="btn btn-secundario" id="btnVaciarHist">Vaciar historial</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Hora</th><th>Fecha</th><th>Habitación</th><th>Pasó de</th><th>A</th><th>Quién</th></tr></thead>
+        <tbody id="tablaHist"></tbody>
+      </table>
+    </div>
+    <p class="aviso">Queda registrado cada cambio de estado con hora y responsable. <b>Cerrar el día</b> guarda el resumen de la jornada y deja el historial listo para la siguiente.</p>
+  </section>
+</main>
+
+<div class="fondo" id="fondoCfg">
+  <div class="panel">
+    <h3>Conexión con la planilla</h3>
+    <div class="cuerpo">
+      <p>Pegá la dirección de la aplicación web publicada desde la planilla de housekeeping. Sin esto, los datos quedan solo en este dispositivo.</p>
+      <div class="campo"><label for="cfgUrl">Dirección de la aplicación web</label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="campo"><label for="cfgPin">Clave</label><input id="cfgPin" placeholder="La del script"></div>
+      <div id="cfgDiag" style="display:none;font-size:12.5px;padding:10px 12px;border-radius:5px;margin-bottom:12px"></div>
+      <div class="acciones">
+        <button class="btn btn-primario" id="cfgGuardar">Conectar</button>
+        <button class="btn btn-secundario" id="cfgProbar">Probar conexión</button>
+        <button class="btn btn-secundario" id="cfgCerrar">Cancelar</button>
+        <button class="btn btn-rojo" id="cfgSalir">Desconectar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fondo" id="fondoMuc">
+  <div class="panel">
+    <h3>Mucamas</h3>
+    <div class="cuerpo">
+      <p>Una por línea. Se usan para asignar habitaciones y filtrar la grilla.</p>
+      <div class="campo"><textarea id="txtMucamas" style="min-height:150px" placeholder="María&#10;Rosa&#10;Carla"></textarea></div>
+      <div class="acciones">
+        <button class="btn btn-primario" id="mucGuardar">Guardar</button>
+        <button class="btn btn-secundario" id="mucCerrar">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= inventario ================= */
+const rango=(a,b)=>{const r=[];for(let i=a;i<=b;i++)r.push(String(i));return r;};
+const SECTORES=[
+  {n:'S.S', habs:rango(1,16).concat(['SA','SB'])},
+  {n:'P.B', habs:rango(17,41)},
+  {n:'P.P', habs:rango(142,160)},
+  {n:'U',   habs:rango(161,180)},
+  {n:'S.P', habs:rango(201,227)}
+];
+const TODAS=SECTORES.reduce((a,s)=>a.concat(s.habs),[]);
+const CATS=[
+  ['Standard',['17','20','23','26','29','32','35','38','41','204','207','208','211','212','215','218','221','222','227']],
+  ['Standard con Balcón',['18','19','21','22','24','25','27','28','30','31','33','34','36','37','39','40']],
+  ['Standard View',['202','203','205','206','209','210','213','214','216','217','219','220','223','224','225','226']],
+  ['Superior con Balcón',rango(1,16).concat(['SA','SB'],rango(144,159))],
+  ['Movilidad Reducida',['160','201']],
+  ['Suite Standard',rango(161,166)],
+  ['Suite Presidencial',['168','175']],
+  ['Suite Superior con Jacuzzi',rango(169,174)],
+  ['Suite 2 Ambientes',['176']],
+  ['Suite Junior',rango(177,180)]
+];
+const CATEGORIA={};
+CATS.forEach(([nombre,lista])=>lista.forEach(h=>CATEGORIA[h]=nombre));
+TODAS.forEach(h=>{ if(!CATEGORIA[h]) CATEGORIA[h]='Sin categoría'; });
+const SECTOR_DE={};
+SECTORES.forEach(s=>s.habs.forEach(h=>SECTOR_DE[h]=s.n));
+
+const ESTADOS=[
+  {n:'Sucia',c:'#a83228'},
+  {n:'Limpiando',c:'#c9821a'},
+  {n:'Servicio Realizado',c:'#7a9a4e'},
+  {n:'Lista Para Entregar',c:'#3f6f9f'},
+  {n:'Libre Limpia',c:'#138170'},
+  {n:'Cartel Privacidad',c:'#7a5ea8'},
+  {n:'En Mantenimiento',c:'#6e7674'}
+];
+const COLOR_DE=e=>(ESTADOS.find(x=>x.n===e)||ESTADOS[0]).c;
+const PENDIENTES=['Sucia','Limpiando','Cartel Privacidad','En Mantenimiento'];
+
+/* ================= estado ================= */
+const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg';
+let estados={}, pedidos={}, historial=[], mucamas=[];
+let sel=null, cfg={url:'',pin:'',usuario:'Gobernanta'};
+let enVuelo=false, conectado=false, ultimaSync=null, memoria=null;
+const enNube=()=>!!cfg.url;
+
+function guardar(){
+  const p=JSON.stringify({estados,pedidos,historial,mucamas});
+  try{ localStorage.setItem(CLAVE,p); }catch(e){ memoria=p; }
+}
+function cargar(){
+  let crudo=null;
+  try{ crudo=localStorage.getItem(CLAVE); }catch(e){ crudo=memoria; }
+  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; }catch(e){} }
+  try{ cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}')); }catch(e){}
+}
+function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
+
+/* ================= utilidades ================= */
+const hoyTxt=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
+const horaTxt=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const est=h=>(estados[h]&&estados[h].estado)||'Sucia';
+const muc=h=>(estados[h]&&estados[h].mucama)||'';
+let temporizador;
+function aviso(t){
+  const el=document.getElementById('toast');
+  el.textContent=t; el.classList.add('ver');
+  clearTimeout(temporizador); temporizador=setTimeout(()=>el.classList.remove('ver'),3000);
+}
+function repintar(){ dibujarSectores(); dibujarContadores(); dibujarPedidos(); dibujarHistorial(); }
+
+/* ================= sincronización ================= */
+function aplicarEstado(e){
+  estados=e.estados||{}; pedidos=e.pedidos||{}; historial=e.historial||[]; mucamas=e.mucamas||[];
+  guardar(); llenarFiltros(); repintar();
+  if(sel) abrirFicha(sel);
+  ultimaSync=new Date(); marcarConexion(true);
+}
+async function traer(silencioso){
+  if(!enNube()||enVuelo) return;
+  try{
+    const r=await fetch(cfg.url+'?token='+encodeURIComponent(cfg.pin)+'&t='+Date.now(),{redirect:'follow'});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'');
+    aplicarEstado(j.estado);
+  }catch(e){ marcarConexion(false); if(!silencioso) aviso('No se pudo leer la planilla.'); }
+}
+async function enviar(accion,extra){
+  if(!enNube()) return false;
+  enVuelo=true; marcarConexion(conectado,'Guardando…');
+  try{
+    const r=await fetch(cfg.url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(Object.assign({token:cfg.pin,accion,usuario:cfg.usuario},extra))});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'');
+    aplicarEstado(j.estado);
+    return true;
+  }catch(e){
+    marcarConexion(false);
+    aviso('No se pudo guardar en la planilla. El cambio quedó solo en esta pantalla.');
+    return false;
+  }finally{ enVuelo=false; }
+}
+function marcarConexion(ok,texto){
+  conectado=!!ok;
+  const c=document.getElementById('conexion'), t=document.getElementById('conexionTxt');
+  c.classList.toggle('viva',enNube()&&conectado);
+  c.classList.toggle('mala',enNube()&&!conectado);
+  if(texto){ t.textContent=texto; return; }
+  if(!enNube()){ t.textContent='Modo local'; return; }
+  if(!conectado){ t.textContent='Sin conexión'; return; }
+  const s=ultimaSync?Math.round((Date.now()-ultimaSync.getTime())/1000):0;
+  t.textContent='En vivo · '+(s<10?'recién':s<60?'hace '+s+' s':'hace '+Math.round(s/60)+' min');
+}
+
+/* ================= grilla ================= */
+function visible(h){
+  const b=document.getElementById('buscar').value.trim().toLowerCase();
+  if(b && !String(h).toLowerCase().includes(b)) return false;
+  const fe=document.getElementById('filtroEstado').value;
+  if(fe && est(h)!==fe) return false;
+  const fm=document.getElementById('filtroMucama').value;
+  if(fm && muc(h)!==fm) return false;
+  if(document.getElementById('soloPend').checked && !PENDIENTES.includes(est(h))) return false;
+  return true;
+}
+
+function dibujarSectores(){
+  const cont=document.getElementById('sectores');
+  cont.innerHTML=SECTORES.map(s=>{
+    const habs=s.habs.filter(visible);
+    return `<section class="tarjeta">
+      <h2>Sector ${esc(s.n)} <span style="font-weight:400;color:#7d8a85">· ${habs.length} de ${s.habs.length}</span>
+        <span class="der">
+          <button class="btn btn-secundario btn-chico" data-asignar="${esc(s.n)}">Asignar mucama</button>
+          <button class="btn btn-secundario btn-chico" data-sucias="${esc(s.n)}">Marcar todas sucias</button>
+        </span></h2>
+      ${habs.length?`<div class="grilla">${habs.map(h=>{
+        const e=est(h), m=muc(h), p=pedidos[h];
+        return `<button class="hab ${sel===h?'sel':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${esc(h)} · ${esc(e)}">
+          ${p?'<span class="marca">★</span>':''}
+          <b>${esc(h)}</b><small>${esc(m||e)}</small></button>`;
+      }).join('')}</div>`:'<p class="vacio" style="padding:14px 16px">Ninguna habitación de este sector coincide con el filtro.</p>'}
+    </section>`;
+  }).join('')+`<div class="tarjeta"><div class="leyenda">${ESTADOS.map(e=>`<span><i class="punto" style="background:${e.c}"></i>${e.n}</span>`).join('')}<span>★ pedido especial</span></div></div>`;
+
+  cont.querySelectorAll('[data-hab]').forEach(b=>b.onclick=()=>abrirFicha(b.dataset.hab));
+  cont.querySelectorAll('[data-asignar]').forEach(b=>b.onclick=()=>asignarSector(b.dataset.asignar));
+  cont.querySelectorAll('[data-sucias]').forEach(b=>b.onclick=()=>sectorSucias(b.dataset.sucias));
+}
+
+function dibujarContadores(){
+  const c=document.getElementById('contadores');
+  const cuenta={};
+  ESTADOS.forEach(e=>cuenta[e.n]=0);
+  TODAS.forEach(h=>cuenta[est(h)]++);
+  const mostrar=['Sucia','Limpiando','Lista Para Entregar','Libre Limpia'];
+  c.innerHTML=mostrar.map(n=>`<div class="contador" style="background:${COLOR_DE(n)}"><b>${cuenta[n]}</b><small>${n==='Lista Para Entregar'?'a revisar':n.toLowerCase()}</small></div>`).join('')
+    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(pedidos).length}</b><small>pedidos</small></div>`;
+}
+
+/* ================= ficha ================= */
+function abrirFicha(h){
+  sel=h;
+  const e=est(h), m=muc(h), p=pedidos[h], info=estados[h]||{};
+  document.getElementById('fichaTitulo').innerHTML=`Habitación ${esc(h)} <span class="chip" style="background:${COLOR_DE(e)}">${esc(e)}</span>`;
+  document.getElementById('fichaCuerpo').innerHTML=`
+    <p class="vacio" style="margin:0 0 12px">Sector ${esc(SECTOR_DE[h])} · ${esc(CATEGORIA[h])}</p>
+    ${p?`<div class="pedido-caja"><b>★ Pedido especial</b><br>${esc(p.texto)}${p.cuando?'<br><b>Para:</b> '+esc(p.cuando):''}</div>`:''}
+    <div class="estados">${ESTADOS.map(x=>`<button class="bEstado ${x.n===e?'activo':''}" data-est="${esc(x.n)}" style="background:${x.c}">${esc(x.n)}</button>`).join('')}</div>
+    <div class="campo"><label for="fMuc">Mucama asignada</label>
+      <select id="fMuc"><option value="">Sin asignar</option>${mucamas.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+    <div class="campo"><label for="fPed">Pedido especial</label>
+      <textarea id="fPed" placeholder="Cuna, almohadas extra, alergia, aniversario…">${esc(p?p.texto:'')}</textarea></div>
+    <div class="campo"><label for="fCuando">Para cuándo</label>
+      <input id="fCuando" value="${esc(p?p.cuando:'')}" placeholder="Antes del check-in, 18 hs, etc."></div>
+    ${info.quien?`<p class="vacio">Último cambio: ${esc(info.quien)}${info.actualizado?' · '+esc(info.actualizado):''}</p>`:''}
+    <div class="acciones">
+      <button class="btn btn-primario" id="bGuardar">Guardar</button>
+      ${p?'<button class="btn btn-rojo" id="bQuitar">Quitar pedido</button>':''}
+      <button class="btn btn-secundario" id="bCerrar">Cerrar</button>
+    </div>`;
+  document.getElementById('fichaCuerpo').querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>cambiarEstado(h,b.dataset.est));
+  document.getElementById('bGuardar').onclick=()=>guardarFicha(h);
+  document.getElementById('bCerrar').onclick=cerrarFicha;
+  const bq=document.getElementById('bQuitar'); if(bq) bq.onclick=()=>quitarPedido(h);
+  dibujarSectores();
+}
+function cerrarFicha(){
+  sel=null;
+  document.getElementById('fichaTitulo').textContent='Habitación';
+  document.getElementById('fichaCuerpo').innerHTML='<p class="vacio">Tocá una habitación para cambiarle el estado, asignar mucama o cargar un pedido especial.</p>';
+  dibujarSectores();
+}
+
+async function cambiarEstado(h,nuevo){
+  const anterior=est(h);
+  if(anterior===nuevo){ return; }
+  estados[h]=Object.assign({},estados[h],{estado:nuevo,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
+  historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab:h,de:anterior,a:nuevo,quien:cfg.usuario});
+  historial=historial.slice(0,2000);
+  guardar(); repintar(); abrirFicha(h);
+  if(enNube()) await enviar('estado',{hab:h,estado:nuevo,mucama:muc(h),de:anterior});
+  aviso(`Habitación ${h}: ${nuevo}.`);
+}
+
+async function guardarFicha(h){
+  const mucama=document.getElementById('fMuc').value;
+  const texto=document.getElementById('fPed').value.trim();
+  const cuando=document.getElementById('fCuando').value.trim();
+  estados[h]=Object.assign({},estados[h],{estado:est(h),mucama,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
+  if(texto) pedidos[h]={texto,cuando,quien:cfg.usuario,fecha:hoyTxt()};
+  else delete pedidos[h];
+  guardar(); repintar(); abrirFicha(h);
+  if(enNube()){
+    await enviar('estado',{hab:h,estado:est(h),mucama,de:est(h),sinHistorial:true});
+    await enviar('pedido',{hab:h,texto,cuando});
+  }
+  aviso('Habitación '+h+' actualizada.');
+}
+
+async function quitarPedido(h){
+  if(!confirm(`¿Quitar el pedido especial de la habitación ${h}?`)) return;
+  delete pedidos[h]; guardar(); repintar(); abrirFicha(h);
+  if(enNube()) await enviar('pedido',{hab:h,texto:'',cuando:''});
+  aviso('Pedido quitado.');
+}
+
+/* ================= acciones por sector ================= */
+async function asignarSector(sector){
+  if(!mucamas.length){ aviso('Primero cargá las mucamas con el botón Mucamas.'); return; }
+  const nombre=prompt(`¿A qué mucama asignás todo el sector ${sector}?\n\n`+mucamas.join(', '));
+  if(nombre===null) return;
+  const elegida=mucamas.find(m=>m.toLowerCase()===nombre.trim().toLowerCase());
+  if(!elegida){ aviso('Ese nombre no está en la lista de mucamas.'); return; }
+  const habs=SECTORES.find(s=>s.n===sector).habs;
+  habs.forEach(h=>{ estados[h]=Object.assign({},estados[h],{estado:est(h),mucama:elegida,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()}); });
+  guardar(); repintar();
+  if(enNube()) await enviar('asignarSector',{sector,mucama:elegida,habs});
+  aviso(`Sector ${sector} asignado a ${elegida}.`);
+}
+
+async function sectorSucias(sector){
+  const habs=SECTORES.find(s=>s.n===sector).habs;
+  if(!confirm(`¿Marcar como Sucia las ${habs.length} habitaciones del sector ${sector}?`)) return;
+  habs.forEach(h=>{
+    const anterior=est(h);
+    if(anterior==='Sucia') return;
+    estados[h]=Object.assign({},estados[h],{estado:'Sucia',quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
+    historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab:h,de:anterior,a:'Sucia',quien:cfg.usuario});
+  });
+  historial=historial.slice(0,2000);
+  guardar(); repintar();
+  if(enNube()) await enviar('estadoSector',{sector,estado:'Sucia',habs});
+  aviso(`Sector ${sector} marcado como sucio.`);
+}
+
+/* ================= tablas ================= */
+function dibujarPedidos(){
+  const llaves=Object.keys(pedidos);
+  document.getElementById('cPedidos').textContent=llaves.length?`· ${llaves.length}`:'';
+  const tb=document.getElementById('tablaPedidos');
+  if(!llaves.length){ tb.innerHTML='<tr><td colspan="6" style="color:#7d8a85;padding:18px 12px">No hay pedidos especiales cargados.</td></tr>'; return; }
+  tb.innerHTML=llaves.sort((a,b)=>TODAS.indexOf(a)-TODAS.indexOf(b)).map(h=>{
+    const p=pedidos[h];
+    return `<tr><td class="hb">${esc(h)}</td><td>${esc(p.texto)}</td><td>${esc(p.cuando)}</td><td>${esc(p.quien)}</td><td>${esc(p.fecha)}</td>
+      <td style="white-space:nowrap"><button class="link" data-ver="${esc(h)}">Abrir</button><button class="link rojo" data-quitar="${esc(h)}">Quitar</button></td></tr>`;
+  }).join('');
+  tb.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{ abrirFicha(b.dataset.ver); document.getElementById('ficha').scrollIntoView({behavior:'smooth',block:'center'}); });
+  tb.querySelectorAll('[data-quitar]').forEach(b=>b.onclick=()=>quitarPedido(b.dataset.quitar));
+}
+
+function dibujarHistorial(){
+  const f=document.getElementById('buscarHist').value.trim().toLowerCase();
+  const lista=historial.filter(x=>!f||[x.hab,x.de,x.a,x.quien,x.fecha].join(' ').toLowerCase().includes(f));
+  document.getElementById('cHist').textContent=historial.length?`· ${historial.length} cambios`:'';
+  const tb=document.getElementById('tablaHist');
+  if(!lista.length){ tb.innerHTML=`<tr><td colspan="6" style="color:#7d8a85;padding:18px 12px">${f?'Sin coincidencias.':'Todavía no hay cambios registrados.'}</td></tr>`; return; }
+  tb.innerHTML=lista.slice(0,300).map(x=>
+    `<tr><td class="hb">${esc(x.hora)}</td><td>${esc(x.fecha)}</td><td>${esc(x.hab)}</td>
+      <td><span class="chip" style="background:${COLOR_DE(x.de)};font-size:10px">${esc(x.de)}</span></td>
+      <td><span class="chip" style="background:${COLOR_DE(x.a)};font-size:10px">${esc(x.a)}</span></td>
+      <td>${esc(x.quien)}</td></tr>`).join('');
+}
+
+/* ================= cerrar el día / Excel ================= */
+async function cerrarDia(){
+  const cuenta={}; ESTADOS.forEach(e=>cuenta[e.n]=0); TODAS.forEach(h=>cuenta[est(h)]++);
+  const resumen=ESTADOS.map(e=>e.n+': '+cuenta[e.n]).join(' · ');
+  if(!confirm(`Cierre del ${hoyTxt()}\n\n${resumen}\n\nSe guarda el resumen del día y se vacía el historial de cambios. Los estados de las habitaciones no se tocan. ¿Cerrar?`)) return;
+  historial=[]; guardar(); dibujarHistorial();
+  if(enNube()) await enviar('cerrarDia',{cuenta});
+  aviso('Día cerrado. El resumen quedó guardado en la planilla.');
+}
+
+function exportar(){
+  if(!window.XLSX){ aviso('Para exportar hace falta conexión a internet.'); return; }
+  const wb=XLSX.utils.book_new();
+  const filas=TODAS.map(h=>({'Habitación':h,'Sector':SECTOR_DE[h],'Categoría':CATEGORIA[h],'Estado':est(h),
+    'Mucama':muc(h),'Pedido especial':pedidos[h]?pedidos[h].texto:'','Para cuándo':pedidos[h]?pedidos[h].cuando:'',
+    'Último cambio':(estados[h]||{}).actualizado||'','Quién':(estados[h]||{}).quien||''}));
+  const h1=XLSX.utils.json_to_sheet(filas);
+  h1['!cols']=[{wch:11},{wch:8},{wch:24},{wch:20},{wch:14},{wch:34},{wch:18},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,h1,'Status');
+  const h2=XLSX.utils.json_to_sheet(historial.length?historial.map(x=>({'Fecha':x.fecha,'Hora':x.hora,'Habitación':x.hab,'Pasó de':x.de,'A':x.a,'Quién':x.quien})):[{'Fecha':'','Hora':'','Habitación':'','Pasó de':'','A':'','Quién':''}]);
+  XLSX.utils.book_append_sheet(wb,h2,'Historial');
+  XLSX.writeFile(wb,'housekeeping-eleton-'+hoyTxt().replace(/\//g,'-')+'.xlsx');
+  aviso('Excel descargado.');
+}
+
+/* ================= filtros y config ================= */
+function llenarFiltros(){
+  const fe=document.getElementById('filtroEstado'), fm=document.getElementById('filtroMucama');
+  const ve=fe.value, vm=fm.value;
+  fe.innerHTML='<option value="">Todos los estados</option>'+ESTADOS.map(e=>`<option>${esc(e.n)}</option>`).join('');
+  fm.innerHTML='<option value="">Todas las mucamas</option>'+mucamas.map(m=>`<option>${esc(m)}</option>`).join('');
+  fe.value=ve; fm.value=vm;
+}
+function diag(t,ok){
+  const d=document.getElementById('cfgDiag');
+  d.style.display='block';
+  d.style.background=ok?'#eaf5f0':'#fdf3f2';
+  d.style.border='1px solid '+(ok?'#a9d3c2':'#e0bab5');
+  d.style.color=ok?'#0d543f':'#8a2c22';
+  d.innerHTML=t;
+}
+async function probarConexion(){
+  const url=document.getElementById('cfgUrl').value.trim(), pin=document.getElementById('cfgPin').value.trim();
+  if(!/^https:\/\//.test(url)){ diag('La dirección tiene que empezar con <b>https://</b>.',false); return; }
+  if(!/\/exec$/.test(url)){ diag('La dirección tiene que terminar en <b>/exec</b>, sin el <b>?token=</b> ni nada después.',false); return; }
+  diag('Probando…',true);
+  let r;
+  try{ r=await fetch(url+'?token='+encodeURIComponent(pin)+'&t='+Date.now(),{redirect:'follow'}); }
+  catch(e){ diag('El navegador no pudo llegar al script. Suele ser porque la implementación no está publicada para <b>Cualquier usuario</b>.',false); return; }
+  if(!r.ok){ diag('El servidor respondió con error <b>'+r.status+'</b>.',false); return; }
+  const t=await r.text();
+  if(t.trim().startsWith('<')){ diag('Devolvió una página de Google en vez de datos: revisá que la implementación esté publicada para <b>Cualquier usuario</b>.',false); return; }
+  let j; try{ j=JSON.parse(t); }catch(e){ diag('La respuesta no es válida.',false); return; }
+  if(!j.ok&&j.error==='clave'){ diag('La dirección funciona pero la <b>clave no coincide</b> con la del script.',false); return; }
+  if(!j.ok){ diag('El script respondió: '+esc(j.error||''),false); return; }
+  diag('Conexión correcta. Tocá <b>Conectar</b>.',true);
+}
+
+/* ================= arranque ================= */
+cargar();
+document.getElementById('quien').value=cfg.usuario;
+llenarFiltros(); repintar(); marcarConexion(false);
+['buscar','filtroEstado','filtroMucama','soloPend'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener(el.tagName==='INPUT'&&el.type!=='checkbox'?'input':'change',dibujarSectores);
+});
+document.getElementById('buscarHist').addEventListener('input',dibujarHistorial);
+document.getElementById('btnExportar').onclick=exportar;
+document.getElementById('btnCerrarDia').onclick=cerrarDia;
+document.getElementById('btnVaciarHist').onclick=()=>{ if(confirm('¿Vaciar el historial de cambios? Conviene exportar antes.')){ historial=[]; guardar(); dibujarHistorial(); if(enNube()) enviar('vaciarHistorial',{}); } };
+document.getElementById('quien').onchange=e=>{ cfg.usuario=e.target.value; guardarCfg(); };
+document.getElementById('conexion').onclick=()=>{ document.getElementById('cfgDiag').style.display='none'; document.getElementById('cfgUrl').value=cfg.url; document.getElementById('cfgPin').value=cfg.pin; document.getElementById('fondoCfg').classList.add('ver'); };
+document.getElementById('cfgProbar').onclick=probarConexion;
+document.getElementById('cfgCerrar').onclick=()=>document.getElementById('fondoCfg').classList.remove('ver');
+document.getElementById('cfgSalir').onclick=()=>{ cfg.url=''; cfg.pin=''; guardarCfg(); document.getElementById('fondoCfg').classList.remove('ver'); marcarConexion(false); aviso('Desconectado.'); };
+document.getElementById('cfgGuardar').onclick=async()=>{
+  cfg.url=document.getElementById('cfgUrl').value.trim(); cfg.pin=document.getElementById('cfgPin').value.trim();
+  guardarCfg(); document.getElementById('fondoCfg').classList.remove('ver');
+  if(cfg.url){ await traer(false); if(conectado) aviso('Conectado a la planilla.'); } else marcarConexion(false);
+};
+document.getElementById('btnMucamas').onclick=()=>{ document.getElementById('txtMucamas').value=mucamas.join('\n'); document.getElementById('fondoMuc').classList.add('ver'); };
+document.getElementById('mucCerrar').onclick=()=>document.getElementById('fondoMuc').classList.remove('ver');
+document.getElementById('mucGuardar').onclick=async()=>{
+  mucamas=document.getElementById('txtMucamas').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  guardar(); llenarFiltros(); repintar();
+  document.getElementById('fondoMuc').classList.remove('ver');
+  if(enNube()) await enviar('mucamas',{mucamas});
+  aviso('Lista de mucamas guardada.');
+};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); cerrarFicha(); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) traer(true); });
+setInterval(()=>traer(true),10000);
+setInterval(()=>{ if(enNube()&&!enVuelo) marcarConexion(conectado); },5000);
+if(enNube()) traer(true);
+</script>
+</body>
+</html>
