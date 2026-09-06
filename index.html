@@ -68,6 +68,14 @@
   .vacio{color:#7d8a85;font-size:13px}
   .chip{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:3px 9px;border-radius:20px}
   .pedido-caja{background:#fdf8e8;border:1px solid #e8d89a;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#6b5310}
+  .hab .horario{position:absolute;top:4px;left:5px;font-size:9px;font-weight:700;background:rgba(255,255,255,.92);color:#252525;border-radius:3px;padding:1px 3px;line-height:1.2}
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+  .bTog{border:2px solid var(--linea);background:#fff;border-radius:6px;padding:9px 6px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;color:#5c6b66}
+  .bTog.on{background:#0d543f;border-color:#0d543f;color:#fff}
+  .fotos{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .fotos a{display:block;width:70px;height:70px;border-radius:6px;overflow:hidden;border:1px solid var(--linea)}
+  .fotos img{width:100%;height:100%;object-fit:cover;display:block}
+  .viejo{background:#fdf3f2}
 
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{text-align:left;font-size:11px;font-weight:700;color:#5c6b66;padding:9px 12px;border-bottom:1px solid var(--linea);background:#f7f9f8;white-space:nowrap}
@@ -135,6 +143,23 @@
   </section>
 
   <section class="tarjeta" style="grid-column:1 / -1">
+    <h2>Objetos olvidados <span id="cObjetos" style="font-weight:400;color:#7d8a85"></span>
+      <span class="der"><button class="btn btn-primario btn-chico" id="btnObjeto">Registrar objeto</button></span>
+    </h2>
+    <div class="barra">
+      <input type="search" id="buscarObj" placeholder="Buscar por habitación, descripción, huésped o dónde está">
+      <select id="filtroObj"><option value="">Todos los estados</option></select>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Encontrado</th><th>Lugar</th><th>Descripción</th><th>Dónde está</th><th>Estado</th><th>Fotos</th><th>Encontró</th><th></th></tr></thead>
+        <tbody id="tablaObj"></tbody>
+      </table>
+    </div>
+    <p class="aviso">Las habitaciones con objetos olvidados no quedan marcadas en la grilla: se consultan desde acá. Se resaltan en rojo los que llevan más de <b id="diasTope">90</b> días guardados.</p>
+  </section>
+
+  <section class="tarjeta" style="grid-column:1 / -1">
     <h2>Historial del día <span id="cHist" style="font-weight:400;color:#7d8a85"></span></h2>
     <div class="barra">
       <input type="search" id="buscarHist" placeholder="Buscar por habitación, estado o persona">
@@ -177,6 +202,36 @@
       <div class="acciones">
         <button class="btn btn-primario" id="mucGuardar">Guardar</button>
         <button class="btn btn-secundario" id="mucCerrar">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fondo" id="fondoObj">
+  <div class="panel" style="max-width:540px">
+    <h3 id="objTitulo">Objeto olvidado</h3>
+    <div class="cuerpo">
+      <div class="dos">
+        <div class="campo"><label for="oLugar">Habitación o lugar</label><input id="oLugar" placeholder="Ej.: 214, spa, comedor"></div>
+        <div class="campo"><label for="oFecha">Fecha en que se encontró</label><input type="date" id="oFecha"></div>
+      </div>
+      <div class="campo"><label for="oDesc">Descripción</label><textarea id="oDesc" placeholder="Campera de abrigo azul, talle M, con las iniciales bordadas"></textarea></div>
+      <div class="dos">
+        <div class="campo"><label for="oDonde">Dónde quedó guardado</label><input id="oDonde" placeholder="Casillero 4, depósito, recepción"></div>
+        <div class="campo"><label for="oQuien">Quién lo encontró</label><input id="oQuien" placeholder="Nombre"></div>
+      </div>
+      <div class="dos">
+        <div class="campo"><label for="oEstado">Estado</label><select id="oEstado"></select></div>
+        <div class="campo"><label for="oEntregado">Entregado a</label><input id="oEntregado" placeholder="Nombre del huésped, remito, etc."></div>
+      </div>
+      <div class="campo"><label for="oNotas">Notas</label><textarea id="oNotas" style="min-height:48px" placeholder="Habitación 214, huésped Pérez, se lo avisamos por mail el 12/09"></textarea></div>
+      <div class="campo"><label for="oFotos">Fotos (hasta 3)</label><input type="file" id="oFotos" accept="image/*" multiple capture="environment">
+        <div class="fotos" id="oPreview"></div>
+        <p class="vacio" style="font-size:11.5px;margin:6px 0 0" id="oAvisoFotos"></p></div>
+      <div class="acciones">
+        <button class="btn btn-primario" id="objGuardar">Guardar</button>
+        <button class="btn btn-rojo" id="objBorrar" style="display:none">Borrar registro</button>
+        <button class="btn btn-secundario" id="objCerrar">Cancelar</button>
       </div>
     </div>
   </div>
@@ -226,20 +281,24 @@ const COLOR_DE=e=>(ESTADOS.find(x=>x.n===e)||ESTADOS[0]).c;
 const PENDIENTES=['Sucia','Limpiando','Cartel Privacidad','En Mantenimiento'];
 
 /* ================= estado ================= */
+const EST_OBJ=['Guardado','Devuelto al huésped','Enviado por encomienda','Descartado'];
+const DIAS_TOPE=90;
+
 const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg';
-let estados={}, pedidos={}, historial=[], mucamas=[];
+let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[];
+let objSel=null, fotosNuevas=[];
 let sel=null, cfg={url:'',pin:'',usuario:'Gobernanta'};
 let enVuelo=false, conectado=false, ultimaSync=null, memoria=null;
 const enNube=()=>!!cfg.url;
 
 function guardar(){
-  const p=JSON.stringify({estados,pedidos,historial,mucamas});
+  const p=JSON.stringify({estados,pedidos,historial,mucamas,horarios,objetos});
   try{ localStorage.setItem(CLAVE,p); }catch(e){ memoria=p; }
 }
 function cargar(){
   let crudo=null;
   try{ crudo=localStorage.getItem(CLAVE); }catch(e){ crudo=memoria; }
-  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; }catch(e){} }
+  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; }catch(e){} }
   try{ cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}')); }catch(e){}
 }
 function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
@@ -256,11 +315,19 @@ function aviso(t){
   el.textContent=t; el.classList.add('ver');
   clearTimeout(temporizador); temporizador=setTimeout(()=>el.classList.remove('ver'),3000);
 }
-function repintar(){ dibujarSectores(); dibujarContadores(); dibujarPedidos(); dibujarHistorial(); }
+function repintar(){ dibujarSectores(); dibujarContadores(); dibujarPedidos(); dibujarObjetos(); dibujarHistorial(); }
+const hor=h=>horarios[h]||{};
+function diasDesde(txt){
+  const p=String(txt||'').split('/');
+  if(p.length!==3) return 0;
+  const d=new Date(+p[2],+p[1]-1,+p[0]);
+  return Math.floor((Date.now()-d.getTime())/86400000);
+}
 
 /* ================= sincronización ================= */
 function aplicarEstado(e){
   estados=e.estados||{}; pedidos=e.pedidos||{}; historial=e.historial||[]; mucamas=e.mucamas||[];
+  horarios=e.horarios||{}; objetos=e.objetos||[];
   guardar(); llenarFiltros(); repintar();
   if(sel) abrirFicha(sel);
   ultimaSync=new Date(); marcarConexion(true);
@@ -325,9 +392,11 @@ function dibujarSectores(){
           <button class="btn btn-secundario btn-chico" data-sucias="${esc(s.n)}">Marcar todas sucias</button>
         </span></h2>
       ${habs.length?`<div class="grilla">${habs.map(h=>{
-        const e=est(h), m=muc(h), p=pedidos[h];
-        return `<button class="hab ${sel===h?'sel':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${esc(h)} · ${esc(e)}">
-          ${p?'<span class="marca">★</span>':''}
+        const e=est(h), m=muc(h), p=pedidos[h], hh=hor(h);
+        const badge=hh.eci?'EC':(hh.lco?'LC':'');
+        const tit=esc(h)+' · '+esc(e)+(hh.eci?' · Early check-in '+esc(hh.eci):'')+(hh.lco?' · Late check-out '+esc(hh.lco):'');
+        return `<button class="hab ${sel===h?'sel':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${tit}">
+          ${p?'<span class="marca">★</span>':''}${badge?`<span class="horario">${badge}</span>`:''}
           <b>${esc(h)}</b><small>${esc(m||e)}</small></button>`;
       }).join('')}</div>`:'<p class="vacio" style="padding:14px 16px">Ninguna habitación de este sector coincide con el filtro.</p>'}
     </section>`;
@@ -345,7 +414,8 @@ function dibujarContadores(){
   TODAS.forEach(h=>cuenta[est(h)]++);
   const mostrar=['Sucia','Limpiando','Lista Para Entregar','Libre Limpia'];
   c.innerHTML=mostrar.map(n=>`<div class="contador" style="background:${COLOR_DE(n)}"><b>${cuenta[n]}</b><small>${n==='Lista Para Entregar'?'a revisar':n.toLowerCase()}</small></div>`).join('')
-    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(pedidos).length}</b><small>pedidos</small></div>`;
+    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(pedidos).length}</b><small>pedidos</small></div>`
+    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(horarios).filter(h=>horarios[h].eci||horarios[h].lco).length}</b><small>early / late</small></div>`;
 }
 
 /* ================= ficha ================= */
@@ -357,6 +427,14 @@ function abrirFicha(h){
     <p class="vacio" style="margin:0 0 12px">Sector ${esc(SECTOR_DE[h])} · ${esc(CATEGORIA[h])}</p>
     ${p?`<div class="pedido-caja"><b>★ Pedido especial</b><br>${esc(p.texto)}${p.cuando?'<br><b>Para:</b> '+esc(p.cuando):''}</div>`:''}
     <div class="estados">${ESTADOS.map(x=>`<button class="bEstado ${x.n===e?'activo':''}" data-est="${esc(x.n)}" style="background:${x.c}">${esc(x.n)}</button>`).join('')}</div>
+    <div class="toggles">
+      <button class="bTog ${hor(h).eci?'on':''}" id="bEci">Early check-in</button>
+      <button class="bTog ${hor(h).lco?'on':''}" id="bLco">Late check-out</button>
+    </div>
+    ${(hor(h).eci||hor(h).lco)?`<div class="dos">
+      ${hor(h).eci?`<div class="campo"><label for="fEci">Hora early check-in</label><input id="fEci" value="${esc(hor(h).eci==='sí'?'':hor(h).eci)}" placeholder="Ej.: 11:00"></div>`:''}
+      ${hor(h).lco?`<div class="campo"><label for="fLco">Hora late check-out</label><input id="fLco" value="${esc(hor(h).lco==='sí'?'':hor(h).lco)}" placeholder="Ej.: 16:00"></div>`:''}
+    </div>`:''}
     <div class="campo"><label for="fMuc">Mucama asignada</label>
       <select id="fMuc"><option value="">Sin asignar</option>${mucamas.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
     <div class="campo"><label for="fPed">Pedido especial</label>
@@ -367,9 +445,13 @@ function abrirFicha(h){
     <div class="acciones">
       <button class="btn btn-primario" id="bGuardar">Guardar</button>
       ${p?'<button class="btn btn-rojo" id="bQuitar">Quitar pedido</button>':''}
+      <button class="btn btn-secundario" id="bObjeto">Objeto olvidado</button>
       <button class="btn btn-secundario" id="bCerrar">Cerrar</button>
     </div>`;
   document.getElementById('fichaCuerpo').querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>cambiarEstado(h,b.dataset.est));
+  document.getElementById('bEci').onclick=()=>alternarHorario(h,'eci');
+  document.getElementById('bLco').onclick=()=>alternarHorario(h,'lco');
+  document.getElementById('bObjeto').onclick=()=>abrirObjeto(null,h);
   document.getElementById('bGuardar').onclick=()=>guardarFicha(h);
   document.getElementById('bCerrar').onclick=cerrarFicha;
   const bq=document.getElementById('bQuitar'); if(bq) bq.onclick=()=>quitarPedido(h);
@@ -393,6 +475,17 @@ async function cambiarEstado(h,nuevo){
   aviso(`Habitación ${h}: ${nuevo}.`);
 }
 
+async function alternarHorario(h,cual){
+  const actual=hor(h);
+  const nuevo=Object.assign({eci:actual.eci||'',lco:actual.lco||''});
+  nuevo[cual]=nuevo[cual]?'':'sí';
+  if(!nuevo.eci&&!nuevo.lco) delete horarios[h];
+  else horarios[h]=Object.assign(nuevo,{quien:cfg.usuario,fecha:hoyTxt()});
+  guardar(); repintar(); abrirFicha(h);
+  if(enNube()) await enviar('horario',{hab:h,eci:(horarios[h]||{}).eci||'',lco:(horarios[h]||{}).lco||''});
+  aviso(`Habitación ${h}: ${cual==='eci'?'early check-in':'late check-out'} ${nuevo[cual]?'marcado':'quitado'}.`);
+}
+
 async function guardarFicha(h){
   const mucama=document.getElementById('fMuc').value;
   const texto=document.getElementById('fPed').value.trim();
@@ -400,10 +493,17 @@ async function guardarFicha(h){
   estados[h]=Object.assign({},estados[h],{estado:est(h),mucama,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
   if(texto) pedidos[h]={texto,cuando,quien:cfg.usuario,fecha:hoyTxt()};
   else delete pedidos[h];
+  const eEci=document.getElementById('fEci'), eLco=document.getElementById('fLco');
+  if((eEci||eLco)&&horarios[h]){
+    if(eEci) horarios[h].eci=eEci.value.trim()||'sí';
+    if(eLco) horarios[h].lco=eLco.value.trim()||'sí';
+    horarios[h].quien=cfg.usuario; horarios[h].fecha=hoyTxt();
+  }
   guardar(); repintar(); abrirFicha(h);
   if(enNube()){
     await enviar('estado',{hab:h,estado:est(h),mucama,de:est(h),sinHistorial:true});
     await enviar('pedido',{hab:h,texto,cuando});
+    if(horarios[h]) await enviar('horario',{hab:h,eci:horarios[h].eci||'',lco:horarios[h].lco||''});
   }
   aviso('Habitación '+h+' actualizada.');
 }
@@ -472,6 +572,124 @@ function dibujarHistorial(){
       <td>${esc(x.quien)}</td></tr>`).join('');
 }
 
+
+/* ================= objetos olvidados ================= */
+function dibujarObjetos(){
+  const f=document.getElementById('buscarObj').value.trim().toLowerCase();
+  const fe=document.getElementById('filtroObj').value;
+  const lista=objetos.filter(o=>{
+    if(fe && o.estado!==fe) return false;
+    if(!f) return true;
+    return [o.lugar,o.desc,o.donde,o.encontro,o.entregado,o.notas,o.fecha].join(' ').toLowerCase().includes(f);
+  });
+  const guardados=objetos.filter(o=>o.estado==='Guardado').length;
+  document.getElementById('cObjetos').textContent=objetos.length?`· ${guardados} guardado${guardados===1?'':'s'} de ${objetos.length}`:'';
+  const tb=document.getElementById('tablaObj');
+  if(!lista.length){
+    tb.innerHTML=`<tr><td colspan="8" style="color:#7d8a85;padding:18px 12px">${f||fe?'Sin coincidencias.':'No hay objetos registrados.'}</td></tr>`;
+    return;
+  }
+  tb.innerHTML=lista.map(o=>{
+    const viejo=o.estado==='Guardado'&&diasDesde(o.fecha)>DIAS_TOPE;
+    const fotos=(o.fotos||[]).map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener">Foto ${i+1}</a>`).join(' · ');
+    return `<tr class="${viejo?'viejo':''}"><td class="hb">${esc(o.fecha)}${viejo?'<br><small style="font-weight:400;color:#a83228">hace '+diasDesde(o.fecha)+' días</small>':''}</td>
+      <td>${esc(o.lugar)}</td><td>${esc(o.desc)}</td><td>${esc(o.donde)}</td>
+      <td>${esc(o.estado)}${o.entregado?'<br><small style="color:#7d8a85">'+esc(o.entregado)+'</small>':''}</td>
+      <td style="font-size:12px">${fotos||'—'}</td><td>${esc(o.encontro)}</td>
+      <td style="white-space:nowrap"><button class="link" data-obj="${esc(o.id)}">Abrir</button></td></tr>`;
+  }).join('');
+  tb.querySelectorAll('[data-obj]').forEach(b=>b.onclick=()=>abrirObjeto(b.dataset.obj,null));
+}
+
+function abrirObjeto(id,hab){
+  objSel=id; fotosNuevas=[];
+  const o=(id?objetos.find(x=>x.id===id):null)||{};
+  document.getElementById('objTitulo').textContent=id?'Objeto olvidado':'Registrar objeto olvidado';
+  document.getElementById('oLugar').value=o.lugar||hab||'';
+  document.getElementById('oFecha').value=o.fechaISO||new Date().toISOString().slice(0,10);
+  document.getElementById('oDesc').value=o.desc||'';
+  document.getElementById('oDonde').value=o.donde||'';
+  document.getElementById('oQuien').value=o.encontro||cfg.usuario;
+  document.getElementById('oEstado').innerHTML=EST_OBJ.map(e=>`<option ${e===(o.estado||'Guardado')?'selected':''}>${esc(e)}</option>`).join('');
+  document.getElementById('oEntregado').value=o.entregado||'';
+  document.getElementById('oNotas').value=o.notas||'';
+  document.getElementById('oFotos').value='';
+  document.getElementById('objBorrar').style.display=id?'inline-block':'none';
+  const prev=document.getElementById('oPreview');
+  prev.innerHTML=(o.fotos||[]).map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Foto ${i+1}"></a>`).join('');
+  document.getElementById('oAvisoFotos').textContent=enNube()?'Las fotos se achican antes de subirlas y se guardan en la carpeta de Drive del hotel.':'Sin la planilla conectada no se pueden subir fotos: el registro se guarda igual, sin imágenes.';
+  document.getElementById('fondoObj').classList.add('ver');
+}
+
+function achicarFoto(archivo){
+  return new Promise((resolve,reject)=>{
+    const lector=new FileReader();
+    lector.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=1200;
+        let {width:w,height:alto}=img;
+        if(w>max||alto>max){ const k=Math.min(max/w,max/alto); w=Math.round(w*k); alto=Math.round(alto*k); }
+        const c=document.createElement('canvas'); c.width=w; c.height=alto;
+        c.getContext('2d').drawImage(img,0,0,w,alto);
+        resolve({nombre:archivo.name||'foto.jpg', datos:c.toDataURL('image/jpeg',0.8).split(',')[1]});
+      };
+      img.onerror=reject;
+      img.src=lector.result;
+    };
+    lector.onerror=reject;
+    lector.readAsDataURL(archivo);
+  });
+}
+
+async function guardarObjeto(){
+  const lugar=document.getElementById('oLugar').value.trim();
+  const desc=document.getElementById('oDesc').value.trim();
+  if(!desc){ aviso('Cargá al menos la descripción del objeto.'); document.getElementById('oDesc').focus(); return; }
+  const fISO=document.getElementById('oFecha').value;
+  const p=fISO.split('-');
+  const reg={
+    id:objSel||('o'+Date.now()),
+    fecha:p.length===3?p[2]+'/'+p[1]+'/'+p[0]:hoyTxt(),
+    fechaISO:fISO, lugar, desc,
+    donde:document.getElementById('oDonde').value.trim(),
+    encontro:document.getElementById('oQuien').value.trim()||cfg.usuario,
+    estado:document.getElementById('oEstado').value,
+    entregado:document.getElementById('oEntregado').value.trim(),
+    notas:document.getElementById('oNotas').value.trim(),
+    fotos:(objSel?(objetos.find(x=>x.id===objSel)||{}).fotos:null)||[]
+  };
+  const boton=document.getElementById('objGuardar');
+  boton.disabled=true; boton.textContent='Guardando…';
+  try{
+    const archivos=Array.from(document.getElementById('oFotos').files||[]).slice(0,3);
+    if(archivos.length&&!enNube()) aviso('Sin conexión con la planilla no se suben fotos.');
+    if(archivos.length&&enNube()){
+      boton.textContent='Subiendo fotos…';
+      fotosNuevas=[];
+      for(const a of archivos){ try{ fotosNuevas.push(await achicarFoto(a)); }catch(e){} }
+    }
+    const i=objetos.findIndex(x=>x.id===reg.id);
+    if(i>=0) objetos[i]=reg; else objetos.unshift(reg);
+    guardar(); dibujarObjetos();
+    if(enNube()) await enviar('objeto',{reg,fotos:fotosNuevas});
+    document.getElementById('fondoObj').classList.remove('ver');
+    aviso(objSel?'Objeto actualizado.':'Objeto registrado.');
+  }finally{
+    boton.disabled=false; boton.textContent='Guardar'; fotosNuevas=[];
+  }
+}
+
+async function borrarObjeto(){
+  if(!objSel) return;
+  if(!confirm('¿Borrar este registro? Las fotos quedan en Drive.')) return;
+  objetos=objetos.filter(x=>x.id!==objSel);
+  guardar(); dibujarObjetos();
+  document.getElementById('fondoObj').classList.remove('ver');
+  if(enNube()) await enviar('borrarObjeto',{id:objSel});
+  aviso('Registro borrado.');
+}
+
 /* ================= cerrar el día / Excel ================= */
 async function cerrarDia(){
   const cuenta={}; ESTADOS.forEach(e=>cuenta[e.n]=0); TODAS.forEach(h=>cuenta[est(h)]++);
@@ -487,12 +705,18 @@ function exportar(){
   const wb=XLSX.utils.book_new();
   const filas=TODAS.map(h=>({'Habitación':h,'Sector':SECTOR_DE[h],'Categoría':CATEGORIA[h],'Estado':est(h),
     'Mucama':muc(h),'Pedido especial':pedidos[h]?pedidos[h].texto:'','Para cuándo':pedidos[h]?pedidos[h].cuando:'',
+    'Early check-in':(horarios[h]||{}).eci||'','Late check-out':(horarios[h]||{}).lco||'',
     'Último cambio':(estados[h]||{}).actualizado||'','Quién':(estados[h]||{}).quien||''}));
   const h1=XLSX.utils.json_to_sheet(filas);
-  h1['!cols']=[{wch:11},{wch:8},{wch:24},{wch:20},{wch:14},{wch:34},{wch:18},{wch:16},{wch:14}];
+  h1['!cols']=[{wch:11},{wch:8},{wch:24},{wch:20},{wch:14},{wch:34},{wch:18},{wch:14},{wch:14},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb,h1,'Status');
   const h2=XLSX.utils.json_to_sheet(historial.length?historial.map(x=>({'Fecha':x.fecha,'Hora':x.hora,'Habitación':x.hab,'Pasó de':x.de,'A':x.a,'Quién':x.quien})):[{'Fecha':'','Hora':'','Habitación':'','Pasó de':'','A':'','Quién':''}]);
   XLSX.utils.book_append_sheet(wb,h2,'Historial');
+  const fo=objetos.map(o=>({'Fecha':o.fecha,'Lugar':o.lugar,'Descripción':o.desc,'Dónde está':o.donde,
+    'Estado':o.estado,'Entregado a':o.entregado,'Encontró':o.encontro,'Notas':o.notas,'Fotos':(o.fotos||[]).join(' ')}));
+  const h3=XLSX.utils.json_to_sheet(fo.length?fo:[{'Fecha':'','Lugar':'','Descripción':'','Dónde está':'','Estado':'','Entregado a':'','Encontró':'','Notas':'','Fotos':''}]);
+  h3['!cols']=[{wch:12},{wch:14},{wch:36},{wch:18},{wch:20},{wch:20},{wch:14},{wch:30},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,h3,'Objetos olvidados');
   XLSX.writeFile(wb,'housekeeping-eleton-'+hoyTxt().replace(/\//g,'-')+'.xlsx');
   aviso('Excel descargado.');
 }
@@ -539,6 +763,14 @@ llenarFiltros(); repintar(); marcarConexion(false);
   el.addEventListener(el.tagName==='INPUT'&&el.type!=='checkbox'?'input':'change',dibujarSectores);
 });
 document.getElementById('buscarHist').addEventListener('input',dibujarHistorial);
+document.getElementById('buscarObj').addEventListener('input',dibujarObjetos);
+document.getElementById('filtroObj').innerHTML='<option value="">Todos los estados</option>'+EST_OBJ.map(e=>`<option>${e}</option>`).join('');
+document.getElementById('filtroObj').addEventListener('change',dibujarObjetos);
+document.getElementById('diasTope').textContent=DIAS_TOPE;
+document.getElementById('btnObjeto').onclick=()=>abrirObjeto(null,null);
+document.getElementById('objGuardar').onclick=guardarObjeto;
+document.getElementById('objBorrar').onclick=borrarObjeto;
+document.getElementById('objCerrar').onclick=()=>document.getElementById('fondoObj').classList.remove('ver');
 document.getElementById('btnExportar').onclick=exportar;
 document.getElementById('btnCerrarDia').onclick=cerrarDia;
 document.getElementById('btnVaciarHist').onclick=()=>{ if(confirm('¿Vaciar el historial de cambios? Conviene exportar antes.')){ historial=[]; guardar(); dibujarHistorial(); if(enNube()) enviar('vaciarHistorial',{}); } };
@@ -561,7 +793,7 @@ document.getElementById('mucGuardar').onclick=async()=>{
   if(enNube()) await enviar('mucamas',{mucamas});
   aviso('Lista de mucamas guardada.');
 };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); cerrarFicha(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); document.getElementById('fondoObj').classList.remove('ver'); cerrarFicha(); } });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) traer(true); });
 setInterval(()=>traer(true),10000);
 setInterval(()=>{ if(enNube()&&!enVuelo) marcarConexion(conectado); },5000);
