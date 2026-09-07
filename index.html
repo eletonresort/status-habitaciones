@@ -352,7 +352,8 @@ const MAT_MAX=2, IND_MAX=4;
 const EST_OBJ=['Guardado','Devuelto al huésped','Enviado por encomienda','Descartado'];
 const DIAS_TOPE=90;
 
-const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg';
+const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg', COLA='eleton_hk_cola';
+let cola=[];
 let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[], movimientos={}, camas={};
 let pend={};
 const MOVS=['Recambio','Ingreso','Salida','Servicio','Libre'];
@@ -375,6 +376,7 @@ function cargar(){
   try{ crudo=localStorage.getItem(CLAVE); }catch(e){ crudo=memoria; }
   if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; movimientos=p.movimientos||{}; camas=p.camas||{}; }catch(e){} }
   try{ cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}')); }catch(e){}
+  try{ cola=JSON.parse(localStorage.getItem(COLA)||'[]'); }catch(e){ cola=[]; }
 }
 function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
 
@@ -438,37 +440,79 @@ function aplicarEstado(e){
 }
 async function traer(silencioso){
   if(!enNube()||enVuelo) return;
+  // si hay cambios sin subir, primero se suben: nunca se pisa lo local con lo remoto
+  if(cola.length){
+    const ok=await procesarCola();
+    if(!ok){ marcarConexion(false); return; }
+  }
   try{
-    const r=await fetch(cfg.url+'?token='+encodeURIComponent(cfg.pin)+'&t='+Date.now(),{redirect:'follow'});
+    const r=await pedir(cfg.url+'?token='+encodeURIComponent(cfg.pin)+'&t='+Date.now());
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||'');
+    if(cola.length) return;            // llegó un cambio nuevo mientras leíamos
     aplicarEstado(j.estado);
   }catch(e){ marcarConexion(false); if(!silencioso) aviso('No se pudo leer la planilla.'); }
 }
+
+function pedir(url,opciones){
+  const ctrl=new AbortController();
+  const corte=setTimeout(()=>ctrl.abort(),30000);
+  return fetch(url,Object.assign({redirect:'follow',signal:ctrl.signal},opciones||{}))
+    .finally(()=>clearTimeout(corte));
+}
+
+async function intentarEnvio(item){
+  const r=await pedir(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(Object.assign({token:cfg.pin,accion:item.accion,usuario:cfg.usuario},item.extra))});
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.error||'');
+  return j;
+}
+
+async function procesarCola(){
+  if(!enNube()||!cola.length) return true;
+  enVuelo=true;
+  try{
+    while(cola.length){
+      const item=cola[0];
+      let j=null;
+      try{ j=await intentarEnvio(item); }
+      catch(e){
+        try{ j=await intentarEnvio(item); }   // un reintento inmediato ante un corte pasajero
+        catch(e2){ marcarConexion(false); return false; }
+      }
+      cola.shift();
+      guardarCola();
+      if(!cola.length && j && j.estado) aplicarEstado(j.estado);
+    }
+    return true;
+  }finally{ enVuelo=false; marcarConexion(conectado); }
+}
+
 async function enviar(accion,extra){
   if(!enNube()) return false;
-  enVuelo=true; marcarConexion(conectado,'Guardando…');
-  try{
-    const r=await fetch(cfg.url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify(Object.assign({token:cfg.pin,accion,usuario:cfg.usuario},extra))});
-    const j=await r.json();
-    if(!j.ok) throw new Error(j.error||'');
-    aplicarEstado(j.estado);
-    return true;
-  }catch(e){
-    marcarConexion(false);
-    aviso('No se pudo guardar en la planilla. El cambio quedó solo en esta pantalla.');
-    return false;
-  }finally{ enVuelo=false; }
+  cola.push({accion,extra,hora:Date.now()});
+  guardarCola();
+  marcarConexion(conectado,'Guardando…');
+  const ok=await procesarCola();
+  if(!ok) aviso('Sin conexión. El cambio quedó guardado acá y se sube solo cuando vuelva.');
+  return ok;
 }
+
+function guardarCola(){
+  try{ localStorage.setItem(COLA,JSON.stringify(cola)); }catch(e){}
+}
+
 function marcarConexion(ok,texto){
   conectado=!!ok;
   const c=document.getElementById('conexion'), t=document.getElementById('conexionTxt');
   c.classList.toggle('viva',enNube()&&conectado);
   c.classList.toggle('mala',enNube()&&!conectado);
-  if(texto){ t.textContent=texto; return; }
+  const p=cola.length?' · '+cola.length+' sin subir':'';
+  if(texto){ t.textContent=texto+p; return; }
   if(!enNube()){ t.textContent='Modo local'; return; }
-  if(!conectado){ t.textContent='Sin conexión'; return; }
+  if(!conectado){ t.textContent='Sin conexión'+p; return; }
+  if(cola.length){ t.textContent='Subiendo'+p; return; }
   const s=ultimaSync?Math.round((Date.now()-ultimaSync.getTime())/1000):0;
   t.textContent='En vivo · '+(s<10?'recién':s<60?'hace '+s+' s':'hace '+Math.round(s/60)+' min');
 }
@@ -1168,6 +1212,11 @@ document.getElementById('mucGuardar').onclick=async()=>{
 };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); document.getElementById('fondoObj').classList.remove('ver'); document.getElementById('fondoRep').classList.remove('ver'); cerrarFicha(); } });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) traer(true); });
+window.addEventListener('online',()=>{ procesarCola().then(()=>traer(true)); });
+window.addEventListener('beforeunload',e=>{
+  if(cola.length){ e.preventDefault(); e.returnValue='Hay cambios que todavía no se subieron a la planilla.'; }
+});
+if(cola.length) marcarConexion(false);
 setInterval(()=>traer(true),10000);
 setInterval(()=>{ if(enNube()&&!enVuelo) marcarConexion(conectado); },5000);
 if(enNube()) traer(true);
