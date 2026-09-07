@@ -70,6 +70,8 @@
   .pedido-caja{background:#fdf8e8;border:1px solid #e8d89a;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#6b5310}
   .hab .mov{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.32);color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.3px;padding:2px 3px;border-radius:0 0 6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hab.conmov{padding-bottom:16px}
+  .camas{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .camas .bTog{padding:9px 4px;font-size:13px}
   .caja-cb{background:#eef4f8;border:1px solid #bcd2e0;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#204a63}
   .hab .horario{position:absolute;top:4px;left:5px;font-size:9px;font-weight:700;background:rgba(255,255,255,.92);color:#252525;border-radius:3px;padding:1px 3px;line-height:1.2}
   .toggles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
@@ -99,7 +101,28 @@
   .panel h3{margin:0;padding:14px 18px;border-bottom:1px solid var(--linea);font-family:'Playfair Display',Georgia,serif;font-size:19px;color:var(--verde-oscuro)}
   .panel p{font-size:12.5px;color:#5c6b66;margin:0 0 14px}
   @media (max-width:980px){main{grid-template-columns:1fr;padding:14px}.contadores{margin-left:0;width:100%}}
-  @media print{header,.filtros,.barra,#ficha,.aviso{display:none}main{grid-template-columns:1fr}}
+  .rep-grupo{margin-bottom:14px}
+  .rep-grupo h4{margin:0 0 6px;font-size:13px;color:var(--verde-oscuro);display:flex;align-items:center;gap:8px}
+  .rep-grupo .lista{font-size:13px;line-height:1.7;color:var(--negro)}
+  .rep-sector{color:#7d8a85;font-size:12px}
+  .hoja{border:1px solid var(--linea);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+  .hoja h4{margin:0 0 4px;font-family:'Playfair Display',Georgia,serif;font-size:18px;color:var(--verde-oscuro)}
+  .hoja .sub{font-size:12px;color:#7d8a85;margin-bottom:10px}
+  .hoja table{font-size:12.5px}
+  .hoja th{background:#f7f9f8}
+  .hoja td{padding:7px 10px}
+  .hoja .firma{margin-top:14px;font-size:11.5px;color:#7d8a85}
+  .etq{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:#eceeed;color:#3c4744}
+  @media print{
+    header,.filtros,.barra,#ficha,.aviso,main{display:none}
+    #hojOpciones,#hojAcciones{display:none}
+    .hoja{page-break-after:always;border:none;padding:0}
+    .hoja:last-child{page-break-after:auto}
+    .fondo{position:static;display:block;background:#fff;padding:0}
+    .panel{max-width:100%;box-shadow:none;max-height:none}
+    #repAcciones{display:none}
+    body{background:#fff}
+  }
 </style>
 </head>
 <body>
@@ -124,6 +147,9 @@
       <button class="btn btn-primario btn-chico" id="btnCloudbeds">Importar Cloudbeds</button>
       <input type="file" id="archivoCB" accept=".xlsx,.xls" style="display:none">
       <button class="btn btn-secundario btn-chico" id="btnMucamas">Mucamas</button>
+      <button class="btn btn-secundario btn-chico" id="btnHojas">Hojas por mucama</button>
+      <button class="btn btn-secundario btn-chico" id="btnReporte">Reporte 18 hs</button>
+      <button class="btn btn-secundario btn-chico" id="btnLimpiarMov">Limpiar movimientos</button>
       <button class="btn btn-secundario btn-chico" id="btnCerrarDia">Cerrar el día</button>
       <button class="btn btn-secundario btn-chico" id="btnExportar">Exportar a Excel</button>
     </div>
@@ -243,6 +269,39 @@
   </div>
 </div>
 
+<div class="fondo" id="fondoRep">
+  <div class="panel" style="max-width:760px">
+    <h3>Reporte de cierre <span id="repFecha" style="font-family:'Montserrat';font-size:13px;font-weight:400;color:#5c6b66"></span></h3>
+    <div class="cuerpo" id="repCuerpo"></div>
+    <div class="cuerpo" style="padding-top:0" id="repAcciones">
+      <div class="acciones">
+        <button class="btn btn-primario" id="repImprimir">Imprimir o PDF</button>
+        <button class="btn btn-secundario" id="repGuardar">Guardar cierre</button>
+        <button class="btn btn-secundario" id="repCerrar">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fondo" id="fondoHojas">
+  <div class="panel" style="max-width:820px">
+    <h3>Hojas por mucama <span id="hojFecha" style="font-family:'Montserrat';font-size:12px;font-weight:400;color:#7d8a85"></span></h3>
+    <div class="cuerpo">
+      <div id="hojOpciones" style="margin-bottom:14px">
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <input type="checkbox" id="hojSoloPend" style="width:auto" checked> Incluir solo las habitaciones que faltan hacer</label>
+        <label style="font-size:12.5px;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="hojSinAsignar" style="width:auto" checked> Agregar una hoja con las habitaciones sin asignar</label>
+      </div>
+      <div id="hojCuerpo"></div>
+      <div class="acciones" id="hojAcciones">
+        <button class="btn btn-primario" id="hojImprimir">Imprimir o PDF</button>
+        <button class="btn btn-secundario" id="hojCerrar">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -276,41 +335,45 @@ SECTORES.forEach(s=>s.habs.forEach(h=>SECTOR_DE[h]=s.n));
 
 const ESTADOS=[
   {n:'Sucia',c:'#a83228'},
-  {n:'Limpiando',c:'#c9821a'},
-  {n:'Servicio Realizado',c:'#7a9a4e'},
+  {n:'Limpiando',c:'#e07b1f'},
+  {n:'Libre',c:'#8b9490'},
   {n:'Lista Para Entregar',c:'#3f6f9f'},
   {n:'Libre Limpia',c:'#138170'},
   {n:'Cartel Privacidad',c:'#7a5ea8'},
-  {n:'En Mantenimiento',c:'#6e7674'}
+  {n:'En Mantenimiento',c:'#1c1c1c'}
 ];
+const VIEJOS={'Servicio Realizado':'Libre'};
 const COLOR_DE=e=>(ESTADOS.find(x=>x.n===e)||ESTADOS[0]).c;
 const PENDIENTES=['Sucia','Limpiando','Cartel Privacidad','En Mantenimiento'];
+const MOV_INGRESO='Ingreso';
+const MAT_MAX=2, IND_MAX=4;
 
 /* ================= estado ================= */
 const EST_OBJ=['Guardado','Devuelto al huésped','Enviado por encomienda','Descartado'];
 const DIAS_TOPE=90;
 
 const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg';
-let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[], movimientos={};
-const MOVS=['Recambio','Salida','Servicio','Libre'];
+let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[], movimientos={}, camas={};
+let pend={};
+const MOVS=['Recambio','Ingreso','Salida','Servicio','Libre'];
 const MAPA_RECEPCION={'rotación':'Recambio','rotacion':'Recambio','turnover':'Recambio',
   'check-out':'Salida','checkout':'Salida','salida':'Salida',
   'pernoctando':'Servicio','stayover':'Servicio','ocupada':'Servicio','en casa':'Servicio',
   'check-in':'Llegada','llegada':'Llegada','arrival':'Llegada',
-  'no reservada':'Libre','vacía':'Libre','vacant':'Libre'};
+  'no reservada':'Libre','vacía':'Libre','vacant':'Libre','reservada':'Ingreso'};
 let objSel=null, fotosNuevas=[];
 let sel=null, cfg={url:'',pin:'',usuario:'Gobernanta'};
 let enVuelo=false, conectado=false, ultimaSync=null, memoria=null;
 const enNube=()=>!!cfg.url;
 
 function guardar(){
-  const p=JSON.stringify({estados,pedidos,historial,mucamas,horarios,objetos,movimientos});
+  const p=JSON.stringify({estados,pedidos,historial,mucamas,horarios,objetos,movimientos,camas});
   try{ localStorage.setItem(CLAVE,p); }catch(e){ memoria=p; }
 }
 function cargar(){
   let crudo=null;
   try{ crudo=localStorage.getItem(CLAVE); }catch(e){ crudo=memoria; }
-  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; movimientos=p.movimientos||{}; }catch(e){} }
+  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; movimientos=p.movimientos||{}; camas=p.camas||{}; }catch(e){} }
   try{ cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}')); }catch(e){}
 }
 function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
@@ -319,7 +382,13 @@ function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catc
 const hoyTxt=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
 const horaTxt=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-const est=h=>(estados[h]&&estados[h].estado)||'Sucia';
+const est=h=>{ const e=(estados[h]&&estados[h].estado)||'Sucia'; return VIEJOS[e]||e; };
+const cam=h=>camas[h]||{mat:0,ind:0};
+function textoCamas(h){
+  const c=cam(h);
+  if(!c.mat&&!c.ind) return '';
+  return (c.mat?c.mat+'M':'')+(c.mat&&c.ind?' ':'')+(c.ind?c.ind+'I':'');
+}
 const muc=h=>(estados[h]&&estados[h].mucama)||'';
 let temporizador;
 function aviso(t){
@@ -362,7 +431,7 @@ function diasDesde(txt){
 /* ================= sincronización ================= */
 function aplicarEstado(e){
   estados=e.estados||{}; pedidos=e.pedidos||{}; historial=e.historial||[]; mucamas=e.mucamas||[];
-  horarios=e.horarios||{}; objetos=e.objetos||[]; movimientos=e.movimientos||{};
+  horarios=e.horarios||{}; objetos=e.objetos||[]; movimientos=e.movimientos||{}; camas=e.camas||{}; camas=e.camas||{};
   guardar(); llenarFiltros(); repintar();
   if(sel && !fichaEnUso()) abrirFicha(sel);
   ultimaSync=new Date(); marcarConexion(true);
@@ -422,8 +491,14 @@ function dibujarSectores(){
   const cont=document.getElementById('sectores');
   cont.innerHTML=SECTORES.map(s=>{
     const habs=s.habs.filter(visible);
+    const serv=s.habs.filter(h=>mov(h).mov==='Servicio').length;
+    const reca=s.habs.filter(h=>mov(h).mov==='Recambio').length;
+    const sal=s.habs.filter(h=>mov(h).mov==='Salida').length;
+    const ing=s.habs.filter(h=>mov(h).mov==='Ingreso').length;
+    const resumen=[serv?serv+' servicio'+(serv>1?'s':''):'',reca?reca+' recambio'+(reca>1?'s':''):'',
+      sal?sal+' salida'+(sal>1?'s':''):'',ing?ing+' ingreso'+(ing>1?'s':''):''].filter(Boolean).join(' · ');
     return `<section class="tarjeta">
-      <h2>Sector ${esc(s.n)} <span style="font-weight:400;color:#7d8a85">· ${habs.length} de ${s.habs.length}</span>
+      <h2>Sector ${esc(s.n)} <span style="font-weight:400;color:#7d8a85">· ${habs.length} de ${s.habs.length}${resumen?' · '+resumen:''}</span>
         <span class="der">
           <button class="btn btn-secundario btn-chico" data-asignar="${esc(s.n)}">Asignar mucama</button>
           <button class="btn btn-secundario btn-chico" data-sucias="${esc(s.n)}">Marcar todas sucias</button>
@@ -435,7 +510,7 @@ function dibujarSectores(){
         const tit=esc(h)+' · '+esc(e)+(mv.mov?' · '+esc(mv.mov):'')+(hh.eci?' · Early check-in '+esc(hh.eci):'')+(hh.lco?' · Late check-out '+esc(hh.lco):'');
         return `<button class="hab ${sel===h?'sel':''} ${etiqueta?'conmov':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${tit}">
           ${p?'<span class="marca">★</span>':''}${badge?`<span class="horario">${badge}</span>`:''}
-          <b>${esc(h)}</b><small>${esc(m||e)}</small>
+          <b>${esc(h)}</b><small>${esc([m||e,textoCamas(h)].filter(Boolean).join(' · '))}</small>
           ${etiqueta?`<span class="mov">${esc(etiqueta)}</span>`:''}</button>`;
       }).join('')}</div>`:'<p class="vacio" style="padding:14px 16px">Ninguna habitación de este sector coincide con el filtro.</p>'}
     </section>`;
@@ -468,106 +543,128 @@ function dibujarContadores(){
 }
 
 /* ================= ficha ================= */
+function estadoPend(h){ return pend.hab===h && pend.estado!==undefined ? pend.estado : est(h); }
+function horPend(h){
+  if(pend.hab===h && pend.hor) return pend.hor;
+  const x=hor(h); return {eci:x.eci||'',lco:x.lco||''};
+}
+function camPend(h){
+  if(pend.hab===h && pend.camas) return pend.camas;
+  const c=cam(h); return {mat:c.mat||0,ind:c.ind||0};
+}
+function movPend(h){
+  if(pend.hab===h && pend.mov===null) return '';
+  return (movimientos[h]||{}).mov||'';
+}
+function hayPendientes(){ return !!(pend.hab && (pend.estado!==undefined||pend.hor||pend.camas||pend.mov===null)) || fichaSucia; }
+
 function abrirFicha(h,mantener){
+  if(!mantener && hayPendientes() && pend.hab!==h && !confirm('Hay cambios sin guardar en la habitación '+pend.hab+'. ¿Descartarlos?')){ return; }
   const previos = mantener ? valoresFicha() : null;
-  if(!mantener) fichaSucia=false;
+  if(!mantener){ fichaSucia=false; if(pend.hab!==h) pend={}; }
   sel=h;
-  const e=est(h), m=muc(h), p=pedidos[h], info=estados[h]||{};
-  document.getElementById('fichaTitulo').innerHTML=`Habitación ${esc(h)} <span class="chip" style="background:${COLOR_DE(e)}">${esc(e)}</span>`;
+  const e=estadoPend(h), m=muc(h), p=pedidos[h], info=estados[h]||{};
+  const hh=horPend(h), cc=camPend(h), mv=mov(h);
+  const cambios=hayPendientes();
+  document.getElementById('fichaTitulo').innerHTML=`Habitación ${esc(h)} <span class="chip" style="background:${COLOR_DE(e)}">${esc(e)}</span>`+
+    (cambios?' <span class="chip" style="background:#a83228">sin guardar</span>':'');
   document.getElementById('fichaCuerpo').innerHTML=`
     <p class="vacio" style="margin:0 0 12px">Sector ${esc(SECTOR_DE[h])} · ${esc(CATEGORIA[h])}</p>
-    ${(function(){const mv=mov(h); if(!mv.mov) return '';
-      return `<div class="caja-cb"><b>Cloudbeds · ${esc(mv.mov)}</b>${mv.ocupacion?' · '+esc(mv.ocupacion):''}
-        ${mv.fechaLlegada?'<br>Llegada: '+esc(mv.fechaLlegada)+(mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?' a las '+esc(mv.horaLlegada):''):''}
-        ${mv.salida?'<br>Salida: '+esc(mv.salida):''}
-        ${mv.comentario?'<br>Nota de la habitación: '+esc(mv.comentario):''}
-        ${mv.actualizado?'<br><span style="opacity:.7">Importado '+esc(mv.actualizado)+'</span>':''}</div>`;})()}
+    ${movPend(h)?`<div class="caja-cb"><b>Cloudbeds · ${esc(movPend(h))}</b>${mv.ocupacion?' · '+esc(mv.ocupacion):''}
+      ${mv.fechaLlegada?'<br>Llegada: '+esc(mv.fechaLlegada)+(mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?' a las '+esc(mv.horaLlegada):''):''}
+      ${mv.salida?'<br>Salida: '+esc(mv.salida):''}
+      ${mv.comentario?'<br>Nota de la habitación: '+esc(mv.comentario):''}
+      ${mv.actualizado?'<br><span style="opacity:.7">Importado '+esc(mv.actualizado)+'</span>':''}
+      <br><button class="link" id="bQuitarMov" style="padding:4px 0 0">Quitar el movimiento</button></div>`
+      :(mv.mov?`<div class="caja-cb" style="background:#f4f6f5;border-color:#d5dcd9;color:#5c6b66">Movimiento quitado. Se aplica al guardar.
+        <br><button class="link" id="bVolverMov" style="padding:4px 0 0">Deshacer</button></div>`:'')}
     ${p?`<div class="pedido-caja"><b>★ Pedido especial</b><br>${esc(p.texto)}${p.cuando?'<br><b>Para:</b> '+esc(p.cuando):''}</div>`:''}
     <div class="estados">${ESTADOS.map(x=>`<button class="bEstado ${x.n===e?'activo':''}" data-est="${esc(x.n)}" style="background:${x.c}">${esc(x.n)}</button>`).join('')}</div>
     <div class="toggles">
-      <button class="bTog ${hor(h).eci?'on':''}" id="bEci">Early check-in</button>
-      <button class="bTog ${hor(h).lco?'on':''}" id="bLco">Late check-out</button>
+      <button class="bTog ${hh.eci?'on':''}" id="bEci">Early check-in</button>
+      <button class="bTog ${hh.lco?'on':''}" id="bLco">Late check-out</button>
     </div>
-    ${(hor(h).eci||hor(h).lco)?`<div class="dos">
-      ${hor(h).eci?`<div class="campo"><label for="fEci">Hora early check-in</label><input id="fEci" value="${esc(hor(h).eci==='sí'?'':hor(h).eci)}" placeholder="Ej.: 11:00"></div>`:''}
-      ${hor(h).lco?`<div class="campo"><label for="fLco">Hora late check-out</label><input id="fLco" value="${esc(hor(h).lco==='sí'?'':hor(h).lco)}" placeholder="Ej.: 16:00"></div>`:''}
+    ${(hh.eci||hh.lco)?`<div class="dos">
+      ${hh.eci?`<div class="campo"><label for="fEci">Hora early check-in</label><input id="fEci" value="${esc(hh.eci==='sí'?'':hh.eci)}" placeholder="Ej.: 11:00"></div>`:''}
+      ${hh.lco?`<div class="campo"><label for="fLco">Hora late check-out</label><input id="fLco" value="${esc(hh.lco==='sí'?'':hh.lco)}" placeholder="Ej.: 16:00"></div>`:''}
     </div>`:''}
-    <div class="campo"><label for="fMuc">Mucama asignada</label>
+    <label style="display:block;font-size:11.5px;font-weight:600;color:#5c6b66;margin-bottom:4px">Camas matrimoniales</label>
+    <div class="camas">${[0,1,2].map(n=>`<button class="bTog ${cc.mat===n?'on':''}" data-mat="${n}">${n||'—'}</button>`).join('')}</div>
+    <label style="display:block;font-size:11.5px;font-weight:600;color:#5c6b66;margin:10px 0 4px">Camas individuales</label>
+    <div class="camas">${[0,1,2,3,4].map(n=>`<button class="bTog ${cc.ind===n?'on':''}" data-ind="${n}">${n||'—'}</button>`).join('')}</div>
+    <div class="campo" style="margin-top:12px"><label for="fMuc">Mucama asignada</label>
       <select id="fMuc"><option value="">Sin asignar</option>${mucamas.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
     <div class="campo"><label for="fPed">Pedido especial</label>
       <textarea id="fPed" placeholder="Cuna, almohadas extra, alergia, aniversario…">${esc(p?p.texto:'')}</textarea></div>
     <div class="campo"><label for="fCuando">Para cuándo</label>
       <input id="fCuando" value="${esc(p?p.cuando:'')}" placeholder="Antes del check-in, 18 hs, etc."></div>
     ${info.quien?`<p class="vacio">Último cambio: ${esc(info.quien)}${info.actualizado?' · '+esc(info.actualizado):''}</p>`:''}
-    <p class="vacio" style="font-size:11.5px;margin:0 0 10px">El estado y los horarios se guardan al tocarlos. La mucama, el pedido especial y las horas se guardan con el botón.</p>
+    <p class="vacio" style="font-size:11.5px;margin:0 0 10px">Todo se guarda con el botón. Nada se manda solo.</p>
     <div class="acciones">
-      <button class="btn btn-primario" id="bGuardar">Guardar</button>
+      <button class="btn ${cambios?'btn-primario':'btn-secundario'}" id="bGuardar">${cambios?'Guardar cambios':'Guardar'}</button>
       ${p?'<button class="btn btn-rojo" id="bQuitar">Quitar pedido</button>':''}
       <button class="btn btn-secundario" id="bObjeto">Objeto olvidado</button>
       <button class="btn btn-secundario" id="bCerrar">Cerrar</button>
     </div>`;
-  document.getElementById('fichaCuerpo').querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>cambiarEstado(h,b.dataset.est));
-  document.getElementById('bEci').onclick=()=>alternarHorario(h,'eci');
-  document.getElementById('bLco').onclick=()=>alternarHorario(h,'lco');
-  document.getElementById('bObjeto').onclick=()=>abrirObjeto(null,h);
+  const cuerpo=document.getElementById('fichaCuerpo');
+  cuerpo.querySelectorAll('[data-est]').forEach(b=>b.onclick=()=>{ pend.hab=h; pend.estado=b.dataset.est; abrirFicha(h,true); });
+  cuerpo.querySelectorAll('[data-mat]').forEach(b=>b.onclick=()=>{ pend.hab=h; pend.camas=Object.assign({},camPend(h),{mat:+b.dataset.mat}); abrirFicha(h,true); });
+  cuerpo.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{ pend.hab=h; pend.camas=Object.assign({},camPend(h),{ind:+b.dataset.ind}); abrirFicha(h,true); });
+  const bqm=document.getElementById('bQuitarMov');
+  if(bqm) bqm.onclick=()=>{ pend.hab=h; pend.mov=null; abrirFicha(h,true); };
+  const bvm=document.getElementById('bVolverMov');
+  if(bvm) bvm.onclick=()=>{ pend.hab=h; delete pend.mov; abrirFicha(h,true); };
+  document.getElementById('bEci').onclick=()=>{ const x=horPend(h); pend.hab=h; pend.hor={eci:x.eci?'':'sí',lco:x.lco}; abrirFicha(h,true); };
+  document.getElementById('bLco').onclick=()=>{ const x=horPend(h); pend.hab=h; pend.hor={eci:x.eci,lco:x.lco?'':'sí'}; abrirFicha(h,true); };
   document.getElementById('bGuardar').onclick=()=>guardarFicha(h);
   document.getElementById('bCerrar').onclick=cerrarFicha;
+  document.getElementById('bObjeto').onclick=()=>abrirObjeto(null,h);
   const bq=document.getElementById('bQuitar'); if(bq) bq.onclick=()=>quitarPedido(h);
-  document.getElementById('fichaCuerpo').querySelectorAll('input,textarea,select').forEach(e=>e.addEventListener('input',marcarSucia));
+  cuerpo.querySelectorAll('input,textarea,select').forEach(el=>el.addEventListener('input',marcarSucia));
   restaurarFicha(previos);
-  if(mantener && fichaSucia) marcarSucia();
   dibujarSectores();
 }
+
 function cerrarFicha(){
-  sel=null;
+  if(hayPendientes() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
+  sel=null; pend={}; fichaSucia=false;
   document.getElementById('fichaTitulo').textContent='Habitación';
   document.getElementById('fichaCuerpo').innerHTML='<p class="vacio">Tocá una habitación para cambiarle el estado, asignar mucama o cargar un pedido especial.</p>';
   dibujarSectores();
 }
 
-async function cambiarEstado(h,nuevo){
-  const anterior=est(h);
-  if(anterior===nuevo){ return; }
-  estados[h]=Object.assign({},estados[h],{estado:nuevo,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
-  historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab:h,de:anterior,a:nuevo,quien:cfg.usuario});
-  historial=historial.slice(0,2000);
-  guardar(); repintar(); abrirFicha(h,true);
-  if(enNube()) await enviar('estado',{hab:h,estado:nuevo,mucama:muc(h),de:anterior});
-  aviso(`Habitación ${h}: ${nuevo}.`);
-}
-
-async function alternarHorario(h,cual){
-  const actual=hor(h);
-  const nuevo=Object.assign({eci:actual.eci||'',lco:actual.lco||''});
-  nuevo[cual]=nuevo[cual]?'':'sí';
-  if(!nuevo.eci&&!nuevo.lco) delete horarios[h];
-  else horarios[h]=Object.assign(nuevo,{quien:cfg.usuario,fecha:hoyTxt()});
-  guardar(); repintar(); abrirFicha(h,true);
-  if(enNube()) await enviar('horario',{hab:h,eci:(horarios[h]||{}).eci||'',lco:(horarios[h]||{}).lco||''});
-  aviso(`Habitación ${h}: ${cual==='eci'?'early check-in':'late check-out'} ${nuevo[cual]?'marcado':'quitado'}.`);
-}
-
 async function guardarFicha(h){
-  const mucama=document.getElementById('fMuc').value;
-  const texto=document.getElementById('fPed').value.trim();
-  const cuando=document.getElementById('fCuando').value.trim();
-  estados[h]=Object.assign({},estados[h],{estado:est(h),mucama,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
+  const mucama=(document.getElementById('fMuc')||{}).value||'';
+  const texto=((document.getElementById('fPed')||{}).value||'').trim();
+  const cuando=((document.getElementById('fCuando')||{}).value||'').trim();
+  const nuevoEstado=estadoPend(h), anterior=est(h);
+  const hh=horPend(h), cc=camPend(h);
+  const eEci=document.getElementById('fEci'), eLco=document.getElementById('fLco');
+  if(eEci&&hh.eci) hh.eci=eEci.value.trim()||'sí';
+  if(eLco&&hh.lco) hh.lco=eLco.value.trim()||'sí';
+
+  if(nuevoEstado!==anterior){
+    historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab:h,de:anterior,a:nuevoEstado,quien:cfg.usuario});
+    historial=historial.slice(0,2000);
+  }
+  estados[h]=Object.assign({},estados[h],{estado:nuevoEstado,mucama,quien:cfg.usuario,actualizado:hoyTxt()+' '+horaTxt()});
   if(texto) pedidos[h]={texto,cuando,quien:cfg.usuario,fecha:hoyTxt()};
   else delete pedidos[h];
-  const eEci=document.getElementById('fEci'), eLco=document.getElementById('fLco');
-  if((eEci||eLco)&&horarios[h]){
-    if(eEci) horarios[h].eci=eEci.value.trim()||'sí';
-    if(eLco) horarios[h].lco=eLco.value.trim()||'sí';
-    horarios[h].quien=cfg.usuario; horarios[h].fecha=hoyTxt();
-  }
-  fichaSucia=false;
+  if(hh.eci||hh.lco) horarios[h]={eci:hh.eci,lco:hh.lco,quien:cfg.usuario,fecha:hoyTxt()};
+  else delete horarios[h];
+  if(cc.mat||cc.ind) camas[h]={mat:cc.mat,ind:cc.ind};
+  else delete camas[h];
+  const quitaMov = pend.hab===h && pend.mov===null;
+  if(quitaMov) delete movimientos[h];
+
+  pend={}; fichaSucia=false;
   guardar(); repintar(); abrirFicha(h);
   if(enNube()){
-    await enviar('estado',{hab:h,estado:est(h),mucama,de:est(h),sinHistorial:true});
-    await enviar('pedido',{hab:h,texto,cuando});
-    if(horarios[h]) await enviar('horario',{hab:h,eci:horarios[h].eci||'',lco:horarios[h].lco||''});
+    await enviar('ficha',{hab:h,estado:nuevoEstado,mucama,de:anterior,
+      sinHistorial:nuevoEstado===anterior,texto,cuando,eci:hh.eci||'',lco:hh.lco||'',
+      mat:cc.mat||0,ind:cc.ind||0, quitarMovimiento:quitaMov});
   }
-  aviso('Habitación '+h+' actualizada.');
+  aviso('Habitación '+h+' guardada.');
 }
 
 async function quitarPedido(h){
@@ -803,11 +900,14 @@ function importarCloudbeds(archivo){
         const hab=normalizarHab(bruto);
         if(!validas.has(hab)){ if(String(bruto).includes('-')) ignoradas++; return; }
         const recep=String(f[col.recep]||'').trim();
+        const llegada=fechaLegible(f[col.lleg]);
+        let movimiento=MAPA_RECEPCION[norm(recep)] || (recep||'Libre');
+        if(movimiento==='Libre' && llegada===hoyTxt()) movimiento='Ingreso';
         nuevos[hab]={
-          mov: MAPA_RECEPCION[norm(recep)] || (recep||'Libre'),
+          mov: movimiento,
           ocupacion: String(f[col.ocup]||'').trim(),
           horaLlegada: String(f[col.hora]||'').trim(),
-          fechaLlegada: fechaLegible(f[col.lleg]),
+          fechaLlegada: llegada,
           salida: fechaLegible(f[col.sal]),
           comentario: String(f[col.com]||'').trim(),
           mantenimiento: /^(s|si|sí|y|yes)$/i.test(String(f[col.mant]||'').trim()),
@@ -818,22 +918,23 @@ function importarCloudbeds(archivo){
       });
       if(!leidas){ aviso('El archivo no trae habitaciones reconocibles.'); return; }
 
-      let traerCondicion=false;
-      const conCond=Object.values(condiciones).filter(Boolean).length;
-      if(conCond){
-        traerCondicion=confirm(`Se leyeron ${leidas} habitaciones.\n\n¿Querés traer también el estado de limpieza que tiene Cloudbeds (sucia / limpia / inspeccionada)?\n\nAceptar: pisa lo que hay cargado en la app. Conviene solo a primera hora.\nCancelar: solo actualiza el movimiento del día y no toca el trabajo de las mucamas.`);
-      }
+      const traerCondicion=confirm(`Se leyeron ${leidas} habitaciones.\n\n¿Aplicar también los estados del reporte?\n\n· Sucias del reporte quedan Sucias.\n· Limpias sin fecha de ingreso quedan Libres.\n· Limpias con ingreso hoy se marcan Ingreso y mantienen el estado que tengan en la app.\n\nCancelar: solo actualiza el movimiento del día.`);
       movimientos=nuevos;
+      const cambiados={};
       if(traerCondicion){
         Object.keys(condiciones).forEach(hab=>{
           const c=condiciones[hab].toLowerCase();
+          const m=(nuevos[hab]||{}).mov||'Libre';
           let nuevo=null;
           if(c.startsWith('suci')) nuevo='Sucia';
-          else if(c.startsWith('inspec')) nuevo='Libre Limpia';
-          else if(c.startsWith('limpi')) nuevo='Libre Limpia';
+          else if(c.startsWith('limpi')||c.startsWith('inspec')){
+            if(m==='Ingreso'||m==='Recambio') nuevo=null;   // la define la gobernanta
+            else nuevo='Libre';
+          }
           if(nuevo && est(hab)!==nuevo){
             historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab,de:est(hab),a:nuevo,quien:'Cloudbeds'});
             estados[hab]=Object.assign({},estados[hab],{estado:nuevo,quien:'Cloudbeds',actualizado:hoyTxt()+' '+horaTxt()});
+            cambiados[hab]=true;
           }
         });
         historial=historial.slice(0,2000);
@@ -841,14 +942,17 @@ function importarCloudbeds(archivo){
       // marca en mantenimiento lo que Cloudbeds tenga bloqueado
       Object.keys(nuevos).forEach(hab=>{
         if(nuevos[hab].mantenimiento && est(hab)!=='En Mantenimiento'){
+          cambiados[hab]=true;
           estados[hab]=Object.assign({},estados[hab],{estado:'En Mantenimiento',quien:'Cloudbeds',actualizado:hoyTxt()+' '+horaTxt()});
         }
       });
       guardar(); llenarFiltros(); repintar();
       if(sel && !fichaEnUso()) abrirFicha(sel);
       if(enNube()){
-        await enviar('movimientos',{movimientos:nuevos});
-        if(traerCondicion) for(const hab of Object.keys(condiciones)) if(estados[hab]) await enviar('estado',{hab,estado:est(hab),mucama:muc(hab),sinHistorial:true});
+        const paquete={};
+        Object.keys(cambiados).forEach(hab=>{ paquete[hab]={estado:est(hab),mucama:muc(hab)}; });
+        aviso('Guardando en la planilla…');
+        await enviar('importar',{movimientos:nuevos,estados:paquete});
       }
       const r=TODAS.filter(h=>mov(h).mov==='Recambio').length, sa=TODAS.filter(h=>mov(h).mov==='Salida').length, se=TODAS.filter(h=>mov(h).mov==='Servicio').length;
       aviso(`Importado: ${leidas} habitaciones · ${r} recambio(s), ${sa} salida(s), ${se} servicio(s).`+(ignoradas?` ${ignoradas} fila(s) sin correspondencia.`:''));
@@ -857,14 +961,99 @@ function importarCloudbeds(archivo){
   lector.readAsArrayBuffer(archivo);
 }
 
+/* ================= reporte de cierre ================= */
+function datosReporte(){
+  const grupos={};
+  ESTADOS.forEach(e=>grupos[e.n]=[]);
+  grupos['Servicio del día']=[];
+  TODAS.forEach(h=>{
+    grupos[est(h)].push(h);
+    if(mov(h).mov==='Servicio') grupos['Servicio del día'].push(h);
+  });
+  return grupos;
+}
+
+function abrirReporte(){
+  const g=datosReporte();
+  document.getElementById('repFecha').textContent='· '+hoyTxt()+' '+horaTxt();
+  const orden=['Libre Limpia','Servicio del día','Sucia','Lista Para Entregar','Limpiando','Libre','Cartel Privacidad','En Mantenimiento'];
+  document.getElementById('repCuerpo').innerHTML=orden.map(n=>{
+    const lista=g[n]||[];
+    const color=n==='Servicio del día'?'#3f6f9f':COLOR_DE(n);
+    return `<div class="rep-grupo">
+      <h4><span class="punto" style="background:${color};margin:0"></span>${esc(n)} <span style="font-weight:400;color:#7d8a85">· ${lista.length}</span></h4>
+      <div class="lista">${lista.length?SECTORES.map(sec=>{
+        const enSector=lista.filter(h=>SECTOR_DE[h]===sec.n);
+        return enSector.length?`<div><span class="rep-sector">${esc(sec.n)}:</span> ${enSector.map(esc).join(', ')}</div>`:'';
+      }).join(''):'<span style="color:#7d8a85">—</span>'}</div>
+    </div>`;
+  }).join('')+`<p class="vacio" style="font-size:11.5px">Total: ${TODAS.length} habitaciones. Las de "Servicio del día" salen del reporte de Cloudbeds y pueden repetirse en otra categoría según cómo esté su limpieza.</p>`;
+  document.getElementById('fondoRep').classList.add('ver');
+}
+
+/* ================= hojas por mucama ================= */
+function abrirHojas(){
+  document.getElementById('hojFecha').textContent='· '+hoyTxt()+' '+horaTxt();
+  dibujarHojas();
+  document.getElementById('fondoHojas').classList.add('ver');
+}
+
+function dibujarHojas(){
+  const soloPend=document.getElementById('hojSoloPend').checked;
+  const sinAsig=document.getElementById('hojSinAsignar').checked;
+  const grupos=[];
+  mucamas.forEach(m=>grupos.push([m, TODAS.filter(h=>muc(h)===m)]));
+  if(sinAsig) grupos.push(['Sin asignar', TODAS.filter(h=>!muc(h))]);
+  const filtro=h=>!soloPend || PENDIENTES.includes(est(h)) || ['Recambio','Salida','Servicio','Ingreso'].includes((mov(h)||{}).mov);
+  const cuerpo=grupos.map(([nombre,habs])=>{
+    const lista=habs.filter(filtro).sort((a,b)=>TODAS.indexOf(a)-TODAS.indexOf(b));
+    if(!lista.length) return '';
+    const se=lista.filter(h=>mov(h).mov==='Servicio').length;
+    const re=lista.filter(h=>mov(h).mov==='Recambio').length;
+    const sa=lista.filter(h=>mov(h).mov==='Salida').length;
+    return `<div class="hoja">
+      <h4>${esc(nombre)}</h4>
+      <div class="sub">${hoyTxt()} · ${lista.length} habitación(es)${se?' · '+se+' servicio'+(se>1?'s':''):''}${re?' · '+re+' recambio'+(re>1?'s':''):''}${sa?' · '+sa+' salida'+(sa>1?'s':''):''}</div>
+      <table><thead><tr><th>Hab.</th><th>Sector</th><th>Movimiento</th><th>Estado</th><th>Camas</th><th>Notas</th><th style="width:70px">Hecha</th></tr></thead>
+      <tbody>${lista.map(h=>{
+        const mv=mov(h), p=pedidos[h], hh=hor(h);
+        const notas=[p?'★ '+p.texto:'', hh.eci?'Early check-in'+(hh.eci!=='sí'?' '+hh.eci:''):'', hh.lco?'Late check-out'+(hh.lco!=='sí'?' '+hh.lco:''):'',
+          mv.comentario||'', mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?'Llega '+mv.horaLlegada:''].filter(Boolean).join(' · ');
+        return `<tr><td style="font-weight:700">${esc(h)}</td><td>${esc(SECTOR_DE[h])}</td>
+          <td>${mv.mov&&mv.mov!=='Libre'?'<span class="etq">'+esc(mv.mov)+'</span>':''}</td>
+          <td>${esc(est(h))}</td><td>${esc(textoCamas(h)||'—')}</td><td>${esc(notas)}</td><td></td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="firma">Firma: ____________________     Hora de inicio: ______     Hora de fin: ______</div>
+    </div>`;
+  }).filter(Boolean).join('');
+  document.getElementById('hojCuerpo').innerHTML=cuerpo||'<p class="vacio">No hay habitaciones para listar con estos filtros. Asigná mucamas desde el plano o desde el botón Asignar mucama de cada sector.</p>';
+}
+
+async function limpiarMovimientos(){
+  if(!Object.keys(movimientos).length){ aviso('No hay movimientos cargados.'); return; }
+  if(!confirm('Se van a borrar los movimientos (recambio, salida, servicio, ingreso) de todas las habitaciones. Los estados de limpieza no se tocan. ¿Seguimos?')) return;
+  movimientos={}; guardar(); repintar();
+  if(sel && !fichaEnUso()) abrirFicha(sel);
+  if(enNube()) await enviar('movimientos',{movimientos:{}});
+  aviso('Movimientos borrados.');
+}
+
 /* ================= cerrar el día / Excel ================= */
-async function cerrarDia(){
+async function cerrarDia(silencioso){
   const cuenta={}; ESTADOS.forEach(e=>cuenta[e.n]=0); TODAS.forEach(h=>cuenta[est(h)]++);
-  const resumen=ESTADOS.map(e=>e.n+': '+cuenta[e.n]).join(' · ');
-  if(!confirm(`Cierre del ${hoyTxt()}\n\n${resumen}\n\nSe guarda el resumen del día y se vacía el historial de cambios. Los estados de las habitaciones no se tocan. ¿Cerrar?`)) return;
-  historial=[]; guardar(); dibujarHistorial();
-  if(enNube()) await enviar('cerrarDia',{cuenta});
-  aviso('Día cerrado. El resumen quedó guardado en la planilla.');
+  const g=datosReporte();
+  const detalle={
+    'Libre Limpia':(g['Libre Limpia']||[]).join(', '),
+    'Servicio':(g['Servicio del día']||[]).join(', '),
+    'Sucia':(g['Sucia']||[]).join(', ')
+  };
+  if(!silencioso){
+    const resumen=ESTADOS.map(e=>e.n+': '+cuenta[e.n]).join(' · ');
+    if(!confirm(`Cierre del ${hoyTxt()}\n\n${resumen}\n\nSe guarda el cierre con el detalle de habitaciones y se vacía el historial de cambios. Los estados no se tocan. ¿Cerrar?`)) return;
+    historial=[]; guardar(); dibujarHistorial();
+  }
+  if(enNube()) await enviar('cerrarDia',{cuenta,detalle});
+  aviso('Cierre guardado en la planilla.');
 }
 
 function exportar(){
@@ -872,6 +1061,7 @@ function exportar(){
   const wb=XLSX.utils.book_new();
   const filas=TODAS.map(h=>({'Habitación':h,'Sector':SECTOR_DE[h],'Categoría':CATEGORIA[h],'Estado':est(h),
     'Mucama':muc(h),'Pedido especial':pedidos[h]?pedidos[h].texto:'','Para cuándo':pedidos[h]?pedidos[h].cuando:'',
+    'Matrimoniales':(camas[h]||{}).mat||'','Individuales':(camas[h]||{}).ind||'',
     'Movimiento':(movimientos[h]||{}).mov||'','Llegada':(movimientos[h]||{}).fechaLlegada||'',
     'Hora llegada':(movimientos[h]||{}).horaLlegada||'','Salida prevista':(movimientos[h]||{}).salida||'',
     'Early check-in':(horarios[h]||{}).eci||'','Late check-out':(horarios[h]||{}).lco||'',
@@ -945,7 +1135,17 @@ document.getElementById('objGuardar').onclick=guardarObjeto;
 document.getElementById('objBorrar').onclick=borrarObjeto;
 document.getElementById('objCerrar').onclick=()=>document.getElementById('fondoObj').classList.remove('ver');
 document.getElementById('btnExportar').onclick=exportar;
-document.getElementById('btnCerrarDia').onclick=cerrarDia;
+document.getElementById('btnCerrarDia').onclick=()=>cerrarDia(false);
+document.getElementById('btnReporte').onclick=abrirReporte;
+document.getElementById('repCerrar').onclick=()=>document.getElementById('fondoRep').classList.remove('ver');
+document.getElementById('repImprimir').onclick=()=>window.print();
+document.getElementById('btnHojas').onclick=abrirHojas;
+document.getElementById('btnLimpiarMov').onclick=limpiarMovimientos;
+document.getElementById('hojImprimir').onclick=()=>window.print();
+document.getElementById('hojCerrar').onclick=()=>document.getElementById('fondoHojas').classList.remove('ver');
+document.getElementById('hojSoloPend').onchange=dibujarHojas;
+document.getElementById('hojSinAsignar').onchange=dibujarHojas;
+document.getElementById('repGuardar').onclick=()=>cerrarDia(true);
 document.getElementById('btnVaciarHist').onclick=()=>{ if(confirm('¿Vaciar el historial de cambios? Conviene exportar antes.')){ historial=[]; guardar(); dibujarHistorial(); if(enNube()) enviar('vaciarHistorial',{}); } };
 document.getElementById('quien').onchange=e=>{ cfg.usuario=e.target.value; guardarCfg(); };
 document.getElementById('conexion').onclick=()=>{ document.getElementById('cfgDiag').style.display='none'; document.getElementById('cfgUrl').value=cfg.url; document.getElementById('cfgPin').value=cfg.pin; document.getElementById('fondoCfg').classList.add('ver'); };
@@ -966,7 +1166,7 @@ document.getElementById('mucGuardar').onclick=async()=>{
   if(enNube()) await enviar('mucamas',{mucamas});
   aviso('Lista de mucamas guardada.');
 };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); document.getElementById('fondoObj').classList.remove('ver'); cerrarFicha(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ document.getElementById('fondoCfg').classList.remove('ver'); document.getElementById('fondoMuc').classList.remove('ver'); document.getElementById('fondoObj').classList.remove('ver'); document.getElementById('fondoRep').classList.remove('ver'); cerrarFicha(); } });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) traer(true); });
 setInterval(()=>traer(true),10000);
 setInterval(()=>{ if(enNube()&&!enVuelo) marcarConexion(conectado); },5000);
