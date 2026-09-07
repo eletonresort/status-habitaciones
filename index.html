@@ -68,6 +68,9 @@
   .vacio{color:#7d8a85;font-size:13px}
   .chip{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:3px 9px;border-radius:20px}
   .pedido-caja{background:#fdf8e8;border:1px solid #e8d89a;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#6b5310}
+  .hab .mov{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.32);color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.3px;padding:2px 3px;border-radius:0 0 6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hab.conmov{padding-bottom:16px}
+  .caja-cb{background:#eef4f8;border:1px solid #bcd2e0;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#204a63}
   .hab .horario{position:absolute;top:4px;left:5px;font-size:9px;font-weight:700;background:rgba(255,255,255,.92);color:#252525;border-radius:3px;padding:1px 3px;line-height:1.2}
   .toggles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
   .bTog{border:2px solid var(--linea);background:#fff;border-radius:6px;padding:9px 6px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;color:#5c6b66}
@@ -117,6 +120,9 @@
       <select id="filtroEstado"><option value="">Todos los estados</option></select>
       <select id="filtroMucama"><option value="">Todas las mucamas</option></select>
       <label style="font-size:12.5px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="soloPend" style="width:auto">Solo pendientes</label>
+      <select id="filtroMov"><option value="">Todos los movimientos</option></select>
+      <button class="btn btn-primario btn-chico" id="btnCloudbeds">Importar Cloudbeds</button>
+      <input type="file" id="archivoCB" accept=".xlsx,.xls" style="display:none">
       <button class="btn btn-secundario btn-chico" id="btnMucamas">Mucamas</button>
       <button class="btn btn-secundario btn-chico" id="btnCerrarDia">Cerrar el día</button>
       <button class="btn btn-secundario btn-chico" id="btnExportar">Exportar a Excel</button>
@@ -285,20 +291,26 @@ const EST_OBJ=['Guardado','Devuelto al huésped','Enviado por encomienda','Desca
 const DIAS_TOPE=90;
 
 const CLAVE='eleton_hk_v1', CFG='eleton_hk_cfg';
-let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[];
+let estados={}, pedidos={}, historial=[], mucamas=[], horarios={}, objetos=[], movimientos={};
+const MOVS=['Recambio','Salida','Servicio','Libre'];
+const MAPA_RECEPCION={'rotación':'Recambio','rotacion':'Recambio','turnover':'Recambio',
+  'check-out':'Salida','checkout':'Salida','salida':'Salida',
+  'pernoctando':'Servicio','stayover':'Servicio','ocupada':'Servicio','en casa':'Servicio',
+  'check-in':'Llegada','llegada':'Llegada','arrival':'Llegada',
+  'no reservada':'Libre','vacía':'Libre','vacant':'Libre'};
 let objSel=null, fotosNuevas=[];
 let sel=null, cfg={url:'',pin:'',usuario:'Gobernanta'};
 let enVuelo=false, conectado=false, ultimaSync=null, memoria=null;
 const enNube=()=>!!cfg.url;
 
 function guardar(){
-  const p=JSON.stringify({estados,pedidos,historial,mucamas,horarios,objetos});
+  const p=JSON.stringify({estados,pedidos,historial,mucamas,horarios,objetos,movimientos});
   try{ localStorage.setItem(CLAVE,p); }catch(e){ memoria=p; }
 }
 function cargar(){
   let crudo=null;
   try{ crudo=localStorage.getItem(CLAVE); }catch(e){ crudo=memoria; }
-  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; }catch(e){} }
+  if(crudo){ try{ const p=JSON.parse(crudo); estados=p.estados||{}; pedidos=p.pedidos||{}; historial=p.historial||[]; mucamas=p.mucamas||[]; horarios=p.horarios||{}; objetos=p.objetos||[]; movimientos=p.movimientos||{}; }catch(e){} }
   try{ cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG)||'{}')); }catch(e){}
 }
 function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catch(e){} }
@@ -317,6 +329,7 @@ function aviso(t){
 }
 function repintar(){ dibujarSectores(); dibujarContadores(); dibujarPedidos(); dibujarObjetos(); dibujarHistorial(); }
 const hor=h=>horarios[h]||{};
+const mov=h=>movimientos[h]||{};
 let fichaSucia=false;
 function fichaEnUso(){
   if(fichaSucia) return true;
@@ -349,7 +362,7 @@ function diasDesde(txt){
 /* ================= sincronización ================= */
 function aplicarEstado(e){
   estados=e.estados||{}; pedidos=e.pedidos||{}; historial=e.historial||[]; mucamas=e.mucamas||[];
-  horarios=e.horarios||{}; objetos=e.objetos||[];
+  horarios=e.horarios||{}; objetos=e.objetos||[]; movimientos=e.movimientos||{};
   guardar(); llenarFiltros(); repintar();
   if(sel && !fichaEnUso()) abrirFicha(sel);
   ultimaSync=new Date(); marcarConexion(true);
@@ -399,6 +412,8 @@ function visible(h){
   if(fe && est(h)!==fe) return false;
   const fm=document.getElementById('filtroMucama').value;
   if(fm && muc(h)!==fm) return false;
+  const fv=document.getElementById('filtroMov').value;
+  if(fv && (mov(h).mov||'Libre')!==fv) return false;
   if(document.getElementById('soloPend').checked && !PENDIENTES.includes(est(h))) return false;
   return true;
 }
@@ -416,10 +431,12 @@ function dibujarSectores(){
       ${habs.length?`<div class="grilla">${habs.map(h=>{
         const e=est(h), m=muc(h), p=pedidos[h], hh=hor(h);
         const badge=hh.eci?'EC':(hh.lco?'LC':'');
-        const tit=esc(h)+' · '+esc(e)+(hh.eci?' · Early check-in '+esc(hh.eci):'')+(hh.lco?' · Late check-out '+esc(hh.lco):'');
-        return `<button class="hab ${sel===h?'sel':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${tit}">
+        const mv=mov(h), etiqueta=textoMov(mv);
+        const tit=esc(h)+' · '+esc(e)+(mv.mov?' · '+esc(mv.mov):'')+(hh.eci?' · Early check-in '+esc(hh.eci):'')+(hh.lco?' · Late check-out '+esc(hh.lco):'');
+        return `<button class="hab ${sel===h?'sel':''} ${etiqueta?'conmov':''}" data-hab="${esc(h)}" style="background:${COLOR_DE(e)}" title="${tit}">
           ${p?'<span class="marca">★</span>':''}${badge?`<span class="horario">${badge}</span>`:''}
-          <b>${esc(h)}</b><small>${esc(m||e)}</small></button>`;
+          <b>${esc(h)}</b><small>${esc(m||e)}</small>
+          ${etiqueta?`<span class="mov">${esc(etiqueta)}</span>`:''}</button>`;
       }).join('')}</div>`:'<p class="vacio" style="padding:14px 16px">Ninguna habitación de este sector coincide con el filtro.</p>'}
     </section>`;
   }).join('')+`<div class="tarjeta"><div class="leyenda">${ESTADOS.map(e=>`<span><i class="punto" style="background:${e.c}"></i>${e.n}</span>`).join('')}<span>★ pedido especial</span></div></div>`;
@@ -427,6 +444,14 @@ function dibujarSectores(){
   cont.querySelectorAll('[data-hab]').forEach(b=>b.onclick=()=>abrirFicha(b.dataset.hab));
   cont.querySelectorAll('[data-asignar]').forEach(b=>b.onclick=()=>asignarSector(b.dataset.asignar));
   cont.querySelectorAll('[data-sucias]').forEach(b=>b.onclick=()=>sectorSucias(b.dataset.sucias));
+}
+
+function textoMov(mv){
+  if(!mv||!mv.mov||mv.mov==='Libre') return '';
+  if(mv.mov==='Recambio') return 'RECAMBIO'+(mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?' '+mv.horaLlegada:'');
+  if(mv.mov==='Salida') return mv.ocupacion==='Ocupada'?'SALIDA · EN HAB.':'SALIDA';
+  if(mv.mov==='Llegada') return 'LLEGADA'+(mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?' '+mv.horaLlegada:'');
+  return mv.mov.toUpperCase();
 }
 
 function dibujarContadores(){
@@ -437,7 +462,9 @@ function dibujarContadores(){
   const mostrar=['Sucia','Limpiando','Lista Para Entregar','Libre Limpia'];
   c.innerHTML=mostrar.map(n=>`<div class="contador" style="background:${COLOR_DE(n)}"><b>${cuenta[n]}</b><small>${n==='Lista Para Entregar'?'a revisar':n.toLowerCase()}</small></div>`).join('')
     +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(pedidos).length}</b><small>pedidos</small></div>`
-    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(horarios).filter(h=>horarios[h].eci||horarios[h].lco).length}</b><small>early / late</small></div>`;
+    +`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${Object.keys(horarios).filter(h=>horarios[h].eci||horarios[h].lco).length}</b><small>early / late</small></div>`
+    +(Object.keys(movimientos).length?`<div class="contador" style="background:rgba(255,255,255,.14)"><b>${TODAS.filter(h=>mov(h).mov==='Recambio').length}</b><small>recambios</small></div>
+      <div class="contador" style="background:rgba(255,255,255,.14)"><b>${TODAS.filter(h=>mov(h).mov==='Salida').length}</b><small>salidas</small></div>`:'');
 }
 
 /* ================= ficha ================= */
@@ -449,6 +476,12 @@ function abrirFicha(h,mantener){
   document.getElementById('fichaTitulo').innerHTML=`Habitación ${esc(h)} <span class="chip" style="background:${COLOR_DE(e)}">${esc(e)}</span>`;
   document.getElementById('fichaCuerpo').innerHTML=`
     <p class="vacio" style="margin:0 0 12px">Sector ${esc(SECTOR_DE[h])} · ${esc(CATEGORIA[h])}</p>
+    ${(function(){const mv=mov(h); if(!mv.mov) return '';
+      return `<div class="caja-cb"><b>Cloudbeds · ${esc(mv.mov)}</b>${mv.ocupacion?' · '+esc(mv.ocupacion):''}
+        ${mv.fechaLlegada?'<br>Llegada: '+esc(mv.fechaLlegada)+(mv.horaLlegada&&mv.horaLlegada!=='Desconocido'?' a las '+esc(mv.horaLlegada):''):''}
+        ${mv.salida?'<br>Salida: '+esc(mv.salida):''}
+        ${mv.comentario?'<br>Nota de la habitación: '+esc(mv.comentario):''}
+        ${mv.actualizado?'<br><span style="opacity:.7">Importado '+esc(mv.actualizado)+'</span>':''}</div>`;})()}
     ${p?`<div class="pedido-caja"><b>★ Pedido especial</b><br>${esc(p.texto)}${p.cuando?'<br><b>Para:</b> '+esc(p.cuando):''}</div>`:''}
     <div class="estados">${ESTADOS.map(x=>`<button class="bEstado ${x.n===e?'activo':''}" data-est="${esc(x.n)}" style="background:${x.c}">${esc(x.n)}</button>`).join('')}</div>
     <div class="toggles">
@@ -719,6 +752,111 @@ async function borrarObjeto(){
   aviso('Registro borrado.');
 }
 
+
+/* ================= importar Cloudbeds ================= */
+function normalizarHab(codigo){
+  const t=String(codigo||'').trim();
+  const m=t.match(/^[A-Za-zÀ-ú]{2,5}[-\s]+(.+)$/);
+  const parte=(m?m[1]:t).trim();
+  if(/^\d+$/.test(parte)) return String(parseInt(parte,10));
+  return parte.toUpperCase();
+}
+function fechaLegible(v){
+  const t=String(v||'').trim();
+  if(!t||t==='Desconocido') return '';
+  const iso=t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) return iso[3]+'/'+iso[2]+'/'+iso[1];
+  const ba=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(ba) return t;
+  return t;
+}
+
+function importarCloudbeds(archivo){
+  if(!window.XLSX){ aviso('Para importar hace falta conexión a internet.'); return; }
+  const lector=new FileReader();
+  lector.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const hoja=wb.Sheets[wb.SheetNames[0]];
+      const filas=XLSX.utils.sheet_to_json(hoja,{header:1,defval:'',blankrows:false});
+      // busca la fila de encabezados (la que tiene HABITACIÓN)
+      const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+      let col=null;
+      for(const f of filas){
+        const idx={};
+        f.forEach((c,i)=>{ idx[norm(c)]=i; });
+        if(idx['habitacion']!==undefined){
+          col={hab:idx['habitacion'],estado:idx['estado'],ocup:idx['estado de la habitacion'],
+            hora:idx['hora de llegada'],lleg:idx['fecha de llegada'],sal:idx['salida'],
+            recep:idx['estado en la recepcion'],mant:idx['en mantenimiento'],
+            nm:idx['no molestar'],com:idx['comentarios sobre la habitacion']};
+          break;
+        }
+      }
+      if(!col){ aviso('No encontré la columna HABITACIÓN. ¿Es el export de Gestión de limpieza?'); return; }
+      const validas=new Set(TODAS);
+      const nuevos={}; let leidas=0, ignoradas=0;
+      const condiciones={};
+      filas.forEach(f=>{
+        const bruto=f[col.hab];
+        if(!bruto || norm(bruto)==='habitacion') return;
+        const hab=normalizarHab(bruto);
+        if(!validas.has(hab)){ if(String(bruto).includes('-')) ignoradas++; return; }
+        const recep=String(f[col.recep]||'').trim();
+        nuevos[hab]={
+          mov: MAPA_RECEPCION[norm(recep)] || (recep||'Libre'),
+          ocupacion: String(f[col.ocup]||'').trim(),
+          horaLlegada: String(f[col.hora]||'').trim(),
+          fechaLlegada: fechaLegible(f[col.lleg]),
+          salida: fechaLegible(f[col.sal]),
+          comentario: String(f[col.com]||'').trim(),
+          mantenimiento: /^(s|si|sí|y|yes)$/i.test(String(f[col.mant]||'').trim()),
+          actualizado: hoyTxt()+' '+horaTxt()
+        };
+        condiciones[hab]=String(f[col.estado]||'').trim();
+        leidas++;
+      });
+      if(!leidas){ aviso('El archivo no trae habitaciones reconocibles.'); return; }
+
+      let traerCondicion=false;
+      const conCond=Object.values(condiciones).filter(Boolean).length;
+      if(conCond){
+        traerCondicion=confirm(`Se leyeron ${leidas} habitaciones.\n\n¿Querés traer también el estado de limpieza que tiene Cloudbeds (sucia / limpia / inspeccionada)?\n\nAceptar: pisa lo que hay cargado en la app. Conviene solo a primera hora.\nCancelar: solo actualiza el movimiento del día y no toca el trabajo de las mucamas.`);
+      }
+      movimientos=nuevos;
+      if(traerCondicion){
+        Object.keys(condiciones).forEach(hab=>{
+          const c=condiciones[hab].toLowerCase();
+          let nuevo=null;
+          if(c.startsWith('suci')) nuevo='Sucia';
+          else if(c.startsWith('inspec')) nuevo='Libre Limpia';
+          else if(c.startsWith('limpi')) nuevo='Libre Limpia';
+          if(nuevo && est(hab)!==nuevo){
+            historial.unshift({fecha:hoyTxt(),hora:horaTxt(),hab,de:est(hab),a:nuevo,quien:'Cloudbeds'});
+            estados[hab]=Object.assign({},estados[hab],{estado:nuevo,quien:'Cloudbeds',actualizado:hoyTxt()+' '+horaTxt()});
+          }
+        });
+        historial=historial.slice(0,2000);
+      }
+      // marca en mantenimiento lo que Cloudbeds tenga bloqueado
+      Object.keys(nuevos).forEach(hab=>{
+        if(nuevos[hab].mantenimiento && est(hab)!=='En Mantenimiento'){
+          estados[hab]=Object.assign({},estados[hab],{estado:'En Mantenimiento',quien:'Cloudbeds',actualizado:hoyTxt()+' '+horaTxt()});
+        }
+      });
+      guardar(); llenarFiltros(); repintar();
+      if(sel && !fichaEnUso()) abrirFicha(sel);
+      if(enNube()){
+        await enviar('movimientos',{movimientos:nuevos});
+        if(traerCondicion) for(const hab of Object.keys(condiciones)) if(estados[hab]) await enviar('estado',{hab,estado:est(hab),mucama:muc(hab),sinHistorial:true});
+      }
+      const r=TODAS.filter(h=>mov(h).mov==='Recambio').length, sa=TODAS.filter(h=>mov(h).mov==='Salida').length, se=TODAS.filter(h=>mov(h).mov==='Servicio').length;
+      aviso(`Importado: ${leidas} habitaciones · ${r} recambio(s), ${sa} salida(s), ${se} servicio(s).`+(ignoradas?` ${ignoradas} fila(s) sin correspondencia.`:''));
+    }catch(err){ aviso('No se pudo leer el archivo. Verificá que sea el Excel exportado desde Gestión de limpieza.'); }
+  };
+  lector.readAsArrayBuffer(archivo);
+}
+
 /* ================= cerrar el día / Excel ================= */
 async function cerrarDia(){
   const cuenta={}; ESTADOS.forEach(e=>cuenta[e.n]=0); TODAS.forEach(h=>cuenta[est(h)]++);
@@ -734,10 +872,12 @@ function exportar(){
   const wb=XLSX.utils.book_new();
   const filas=TODAS.map(h=>({'Habitación':h,'Sector':SECTOR_DE[h],'Categoría':CATEGORIA[h],'Estado':est(h),
     'Mucama':muc(h),'Pedido especial':pedidos[h]?pedidos[h].texto:'','Para cuándo':pedidos[h]?pedidos[h].cuando:'',
+    'Movimiento':(movimientos[h]||{}).mov||'','Llegada':(movimientos[h]||{}).fechaLlegada||'',
+    'Hora llegada':(movimientos[h]||{}).horaLlegada||'','Salida prevista':(movimientos[h]||{}).salida||'',
     'Early check-in':(horarios[h]||{}).eci||'','Late check-out':(horarios[h]||{}).lco||'',
     'Último cambio':(estados[h]||{}).actualizado||'','Quién':(estados[h]||{}).quien||''}));
   const h1=XLSX.utils.json_to_sheet(filas);
-  h1['!cols']=[{wch:11},{wch:8},{wch:24},{wch:20},{wch:14},{wch:34},{wch:18},{wch:14},{wch:14},{wch:16},{wch:14}];
+  h1['!cols']=[{wch:11},{wch:8},{wch:24},{wch:20},{wch:14},{wch:34},{wch:18},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:14},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb,h1,'Status');
   const h2=XLSX.utils.json_to_sheet(historial.length?historial.map(x=>({'Fecha':x.fecha,'Hora':x.hora,'Habitación':x.hab,'Pasó de':x.de,'A':x.a,'Quién':x.quien})):[{'Fecha':'','Hora':'','Habitación':'','Pasó de':'','A':'','Quién':''}]);
   XLSX.utils.book_append_sheet(wb,h2,'Historial');
@@ -796,6 +936,10 @@ document.getElementById('buscarObj').addEventListener('input',dibujarObjetos);
 document.getElementById('filtroObj').innerHTML='<option value="">Todos los estados</option>'+EST_OBJ.map(e=>`<option>${e}</option>`).join('');
 document.getElementById('filtroObj').addEventListener('change',dibujarObjetos);
 document.getElementById('diasTope').textContent=DIAS_TOPE;
+document.getElementById('filtroMov').innerHTML='<option value="">Todos los movimientos</option>'+MOVS.map(m=>`<option>${m}</option>`).join('');
+document.getElementById('filtroMov').addEventListener('change',dibujarSectores);
+document.getElementById('btnCloudbeds').onclick=()=>document.getElementById('archivoCB').click();
+document.getElementById('archivoCB').onchange=e=>{ if(e.target.files[0]) importarCloudbeds(e.target.files[0]); e.target.value=''; };
 document.getElementById('btnObjeto').onclick=()=>abrirObjeto(null,null);
 document.getElementById('objGuardar').onclick=guardarObjeto;
 document.getElementById('objBorrar').onclick=borrarObjeto;
