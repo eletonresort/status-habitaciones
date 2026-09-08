@@ -204,7 +204,12 @@
         <tbody id="tablaHist"></tbody>
       </table>
     </div>
-    <p class="aviso">Queda registrado cada cambio de estado con hora y responsable. <b>Cerrar el día</b> guarda el resumen de la jornada y deja el historial listo para la siguiente.</p>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;justify-content:flex-end">
+      <button class="btn btn-secundario btn-chico" id="histAnt">‹ Anteriores</button>
+      <span id="histPag" style="font-size:12px;color:#7d8a85"></span>
+      <button class="btn btn-secundario btn-chico" id="histSig">Siguientes ›</button>
+    </div>
+    <p class="aviso">Queda registrado cada cambio de estado con hora y responsable, de a 10 por página. <b>Cerrar el día</b> guarda el resumen de la jornada y deja el historial listo para la siguiente.</p>
   </section>
 </main>
 
@@ -338,13 +343,13 @@ SECTORES.forEach(s=>s.habs.forEach(h=>SECTOR_DE[h]=s.n));
 const ESTADOS=[
   {n:'Sucia',c:'#a83228'},
   {n:'Limpiando',c:'#e07b1f'},
-  {n:'Libre',c:'#8b9490'},
+  {n:'Servicio Realizado',c:'#7a9a4e'},
+  {n:'Libre Sucia',c:'#8b9490'},
   {n:'Lista Para Entregar',c:'#3f6f9f'},
   {n:'Libre Limpia',c:'#138170'},
   {n:'Cartel Privacidad',c:'#7a5ea8'},
   {n:'En Mantenimiento',c:'#1c1c1c'}
 ];
-const VIEJOS={'Servicio Realizado':'Libre'};
 const COLOR_DE=e=>(ESTADOS.find(x=>x.n===e)||ESTADOS[0]).c;
 const PENDIENTES=['Sucia','Limpiando','Cartel Privacidad','En Mantenimiento'];
 const MOV_INGRESO='Ingreso';
@@ -386,7 +391,8 @@ function guardarCfg(){ try{ localStorage.setItem(CFG,JSON.stringify(cfg)); }catc
 const hoyTxt=()=>{const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();};
 const horaTxt=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-const est=h=>{ const e=(estados[h]&&estados[h].estado)||'Sucia'; return VIEJOS[e]||e; };
+const ALIAS_ESTADO={'Libre':'Libre Sucia'};   // migración por el rename Libre -> Libre Sucia
+const est=h=>{ const e=(estados[h]&&estados[h].estado)||'Sucia'; return ALIAS_ESTADO[e]||e; };
 const cam=h=>camas[h]||{mat:0,ind:0};
 function textoCamas(h){
   const c=cam(h);
@@ -770,17 +776,29 @@ function dibujarPedidos(){
   tb.querySelectorAll('[data-quitar]').forEach(b=>b.onclick=()=>quitarPedido(b.dataset.quitar));
 }
 
+const HIST_POR_PAGINA=10;
+let paginaHist=0;
 function dibujarHistorial(){
   const f=document.getElementById('buscarHist').value.trim().toLowerCase();
   const lista=historial.filter(x=>!f||[x.hab,x.de,x.a,x.quien,x.fecha].join(' ').toLowerCase().includes(f));
   document.getElementById('cHist').textContent=historial.length?`· ${historial.length} cambios`:'';
+  const totalPaginas=Math.max(1,Math.ceil(lista.length/HIST_POR_PAGINA));
+  if(paginaHist>=totalPaginas) paginaHist=totalPaginas-1;
+  if(paginaHist<0) paginaHist=0;
+  const desde=paginaHist*HIST_POR_PAGINA;
+  const pagina=lista.slice(desde,desde+HIST_POR_PAGINA);
   const tb=document.getElementById('tablaHist');
-  if(!lista.length){ tb.innerHTML=`<tr><td colspan="6" style="color:#7d8a85;padding:18px 12px">${f?'Sin coincidencias.':'Todavía no hay cambios registrados.'}</td></tr>`; return; }
-  tb.innerHTML=lista.slice(0,300).map(x=>
-    `<tr><td class="hb">${esc(x.hora)}</td><td>${esc(x.fecha)}</td><td>${esc(x.hab)}</td>
-      <td><span class="chip" style="background:${COLOR_DE(x.de)};font-size:10px">${esc(x.de)}</span></td>
-      <td><span class="chip" style="background:${COLOR_DE(x.a)};font-size:10px">${esc(x.a)}</span></td>
-      <td>${esc(x.quien)}</td></tr>`).join('');
+  if(!pagina.length){ tb.innerHTML=`<tr><td colspan="6" style="color:#7d8a85;padding:18px 12px">${f?'Sin coincidencias.':'Todavía no hay cambios registrados.'}</td></tr>`; }
+  else{
+    tb.innerHTML=pagina.map(x=>
+      `<tr><td class="hb">${esc(x.hora)}</td><td>${esc(x.fecha)}</td><td>${esc(x.hab)}</td>
+        <td><span class="chip" style="background:${COLOR_DE(x.de)};font-size:10px">${esc(x.de)}</span></td>
+        <td><span class="chip" style="background:${COLOR_DE(x.a)};font-size:10px">${esc(x.a)}</span></td>
+        <td>${esc(x.quien)}</td></tr>`).join('');
+  }
+  document.getElementById('histPag').textContent=lista.length?`Página ${paginaHist+1} de ${totalPaginas}`:'';
+  document.getElementById('histAnt').disabled=paginaHist<=0;
+  document.getElementById('histSig').disabled=paginaHist>=totalPaginas-1;
 }
 
 
@@ -1194,7 +1212,9 @@ llenarFiltros(); repintar(); marcarConexion(false);
   const el=document.getElementById(id);
   el.addEventListener(el.tagName==='INPUT'&&el.type!=='checkbox'?'input':'change',dibujarSectores);
 });
-document.getElementById('buscarHist').addEventListener('input',dibujarHistorial);
+document.getElementById('buscarHist').addEventListener('input',()=>{ paginaHist=0; dibujarHistorial(); });
+document.getElementById('histAnt').onclick=()=>{ paginaHist--; dibujarHistorial(); };
+document.getElementById('histSig').onclick=()=>{ paginaHist++; dibujarHistorial(); };
 document.getElementById('buscarObj').addEventListener('input',dibujarObjetos);
 document.getElementById('filtroObj').innerHTML='<option value="">Todos los estados</option>'+EST_OBJ.map(e=>`<option>${e}</option>`).join('');
 document.getElementById('filtroObj').addEventListener('change',dibujarObjetos);
