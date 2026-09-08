@@ -432,13 +432,13 @@ function diasDesde(txt){
 }
 
 /* ================= sincronización ================= */
-function aplicarEstado(e){
+function aplicarDatos(e){
   estados=e.estados||{}; pedidos=e.pedidos||{}; historial=e.historial||[]; mucamas=e.mucamas||[];
-  horarios=e.horarios||{}; objetos=e.objetos||[]; movimientos=e.movimientos||{}; camas=e.camas||{}; camas=e.camas||{};
+  horarios=e.horarios||{}; objetos=e.objetos||[]; movimientos=e.movimientos||{}; camas=e.camas||{};
   guardar(); llenarFiltros(); repintar();
   if(sel && !fichaEnUso()) abrirFicha(sel);
-  ultimaSync=new Date(); marcarConexion(true);
 }
+function aplicarEstado(e){ aplicarDatos(e); ultimaSync=new Date(); marcarConexion(true); }
 async function traer(silencioso){
   if(!enNube()) return;
   // intenta subir lo pendiente, pero un cambio trabado ya NO bloquea la lectura
@@ -1226,13 +1226,38 @@ document.getElementById('cfgCerrar').onclick=()=>document.getElementById('fondoC
 document.getElementById('cfgSalir').onclick=()=>{ cfg.url=''; cfg.pin=''; guardarCfg(); document.getElementById('fondoCfg').classList.remove('ver'); marcarConexion(false); aviso('Desconectado.'); };
 document.getElementById('cfgGuardar').onclick=async()=>{
   cfg.url=document.getElementById('cfgUrl').value.trim(); cfg.pin=document.getElementById('cfgPin').value.trim();
-  guardarCfg(); document.getElementById('fondoCfg').classList.remove('ver');
-  if(cfg.url){
-    await traer(false);
+  guardarCfg();
+  if(!cfg.url){ marcarConexion(false); document.getElementById('fondoCfg').classList.remove('ver'); return; }
+  const boton=document.getElementById('cfgGuardar');
+  boton.disabled=true; boton.textContent='Conectando…';
+  diag('Conectando…',true);
+  let ok=false, motivo='';
+  for(let intento=1;intento<=2 && !ok;intento++){
+    try{
+      const r=await pedir(cfg.url+'?token='+encodeURIComponent(cfg.pin)+'&t='+Date.now());
+      let j;
+      try{ j=await r.json(); }
+      catch(e){ throw new Error('El servidor devolvió una respuesta que no se pudo interpretar (probable error temporal de Google). '); }
+      if(!j.ok) throw new Error(j.error==='clave' ? 'La clave no coincide con la del script.' : (j.error||'error desconocido'));
+      ultimaSync=new Date(); marcarConexion(true);
+      if(!cola.length) aplicarDatos(j.estado);
+      ok=true;
+    }catch(e){
+      motivo=String((e&&e.message)||e);
+      if(intento===1) await new Promise(res=>setTimeout(res,1500));  // reintento corto ante un bache pasajero
+    }
+  }
+  boton.disabled=false; boton.textContent='Conectar';
+  if(ok){
+    if(cola.length){ await procesarCola(); }
     dibujarCola();
-    if(conectado) aviso(cola.length?'Conectado. Hay '+cola.length+' cambio(s) que todavía no se subieron.':'Conectado a la planilla.');
-    else diag('No se pudo conectar. Tocá "Probar conexión" para ver el motivo exacto.',false);
-  } else marcarConexion(false);
+    diag(cola.length?'Conectado. Todavía hay '+cola.length+' cambio(s) sin subir, mirá el detalle abajo.':'Conectado a la planilla.', true);
+    if(!cola.length) setTimeout(()=>document.getElementById('fondoCfg').classList.remove('ver'), 900);
+  }else{
+    marcarConexion(false);
+    diag('No se pudo conectar: '+esc(motivo)+'<br><br>Puede ser un corte pasajero de Google — probá de nuevo en un minuto. Si sigue igual, confirmá que la planilla no se haya movido, renombrado o borrado, y revisá el registro de ejecuciones en Apps Script (Extensiones → Apps Script → Ejecuciones) para ver el error exacto.', false);
+  }
+  dibujarCola();
 };
 document.getElementById('btnMucamas').onclick=()=>{ document.getElementById('txtMucamas').value=mucamas.join('\n'); document.getElementById('fondoMuc').classList.add('ver'); };
 document.getElementById('mucCerrar').onclick=()=>document.getElementById('fondoMuc').classList.remove('ver');
