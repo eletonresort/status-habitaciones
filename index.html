@@ -96,6 +96,18 @@
 
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--verde-oscuro);color:#fff;padding:11px 20px;border-radius:6px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all .22s;z-index:60;max-width:90vw;text-align:center}
   .toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+  .alerta-conexion{
+    position:fixed;top:0;left:0;right:0;z-index:200;background:#a83228;color:#fff;
+    padding:10px 16px;font-size:13px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;text-align:center;
+    transform:translateY(-120%);transition:transform .25s ease;box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  .alerta-conexion.ver{transform:translateY(0)}
+  .alerta-conexion.ok{background:#0d543f}
+  .alerta-conexion .btn-alerta{font-family:inherit;font-size:12px;font-weight:700;border-radius:4px;padding:5px 11px;cursor:pointer;border:1px solid #fff;background:#fff;color:#a83228}
+  .alerta-conexion.ok .btn-alerta:not(.btn-alerta-outline){color:#0d543f}
+  .alerta-conexion .btn-alerta-outline{background:transparent;color:#fff;border-color:rgba(255,255,255,.7)}
+  body.con-alerta{transition:padding-top .25s ease}
   .fondo{position:fixed;inset:0;background:rgba(20,32,28,.55);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
   .fondo.ver{display:flex}
   .panel{background:#fff;border-radius:10px;width:100%;max-width:460px;max-height:90vh;overflow:auto}
@@ -127,6 +139,12 @@
 </style>
 </head>
 <body>
+
+<div class="alerta-conexion" id="alertaConexion" role="alert">
+  <span id="alertaTexto">⚠ Sin conexión con la planilla — lo que cargues queda solo en este dispositivo</span>
+  <button id="alertaReintentar" class="btn-alerta">Reintentar ahora</button>
+  <button id="alertaDetalle" class="btn-alerta btn-alerta-outline">Ver detalle</button>
+</div>
 
 <header>
   <h1>Status de habitaciones<span>Eleton Resort &amp; SPA · Housekeeping</span></h1>
@@ -516,19 +534,66 @@ function guardarCola(){
   try{ localStorage.setItem(COLA,JSON.stringify(cola)); }catch(e){}
 }
 
+let alertaTimeout=null, alertaVisible=false;
 function marcarConexion(ok,texto){
+  const eraConectado=conectado;
   conectado=!!ok;
   const c=document.getElementById('conexion'), t=document.getElementById('conexionTxt');
   c.classList.toggle('viva',enNube()&&conectado);
   c.classList.toggle('mala',enNube()&&!conectado);
   const atascados=cola.filter(x=>x.atascado).length;
   const p=cola.length?' · '+cola.length+' sin subir'+(atascados?' ('+atascados+' con error)':''):'';
-  if(texto){ t.textContent=texto+p; return; }
-  if(!enNube()){ t.textContent='Modo local'; return; }
-  if(!conectado){ t.textContent='Sin conexión'+p; return; }
-  if(cola.length){ t.textContent='Subiendo'+p; return; }
-  const s=ultimaSync?Math.round((Date.now()-ultimaSync.getTime())/1000):0;
-  t.textContent='En vivo · '+(s<10?'recién':s<60?'hace '+s+' s':'hace '+Math.round(s/60)+' min');
+  if(texto){ t.textContent=texto+p; }
+  else if(!enNube()){ t.textContent='Modo local'; }
+  else if(!conectado){ t.textContent='Sin conexión'+p; }
+  else if(cola.length){ t.textContent='Subiendo'+p; }
+  else{ const s=ultimaSync?Math.round((Date.now()-ultimaSync.getTime())/1000):0;
+    t.textContent='En vivo · '+(s<10?'recién':s<60?'hace '+s+' s':'hace '+Math.round(s/60)+' min'); }
+
+  if(!enNube()) return;   // en modo local no corresponde alarmar
+
+  if(!conectado){
+    // espera unos segundos antes de alarmar: evita el susto por un corte de un instante que ya se recupera solo
+    if(!alertaTimeout && !alertaVisible) alertaTimeout=setTimeout(mostrarAlertaConexion,6000);
+  }else{
+    if(alertaTimeout){ clearTimeout(alertaTimeout); alertaTimeout=null; }
+    if(alertaVisible) confirmarReconexion();
+  }
+}
+
+function alturaAlerta(){
+  const el=document.getElementById('alertaConexion');
+  return el.classList.contains('ver') ? el.offsetHeight : 0;
+}
+
+function mostrarAlertaConexion(){
+  alertaTimeout=null;
+  if(conectado) return;   // se recuperó justo antes de cumplirse la espera
+  alertaVisible=true;
+  const el=document.getElementById('alertaConexion');
+  el.classList.remove('ok');
+  document.getElementById('alertaTexto').textContent='⚠ Sin conexión con la planilla — lo que cargues queda solo en este dispositivo';
+  document.getElementById('alertaReintentar').style.display='inline-block';
+  el.classList.add('ver');
+  document.body.classList.add('con-alerta');
+  document.body.style.paddingTop=alturaAlerta()+'px';
+}
+
+function confirmarReconexion(){
+  const el=document.getElementById('alertaConexion');
+  el.classList.add('ok');
+  document.getElementById('alertaReintentar').style.display='none';
+  document.getElementById('alertaTexto').textContent=cola.length
+    ? 'Conectado de nuevo. Subiendo '+cola.length+' cambio(s) pendiente(s)…'
+    : '✓ Conectado de nuevo. Todo se subió.';
+  document.body.style.paddingTop=alturaAlerta()+'px';
+  setTimeout(()=>{
+    if(!conectado) return;   // por si se volvió a cortar mientras mostraba el aviso
+    el.classList.remove('ver');
+    document.body.classList.remove('con-alerta');
+    document.body.style.paddingTop='';
+    alertaVisible=false;
+  },4000);
 }
 
 /* ================= grilla ================= */
@@ -1295,6 +1360,12 @@ window.addEventListener('online',()=>{ procesarCola().then(()=>traer(true)); });
 window.addEventListener('beforeunload',e=>{
   if(cola.length){ e.preventDefault(); e.returnValue='Hay cambios que todavía no se subieron a la planilla.'; }
 });
+document.getElementById('alertaReintentar').onclick=async()=>{
+  document.getElementById('alertaReintentar').disabled=true;
+  await traer(true);
+  document.getElementById('alertaReintentar').disabled=false;
+};
+document.getElementById('alertaDetalle').onclick=()=>{ document.getElementById('conexion').click(); };
 if(cola.length) marcarConexion(false);
 setInterval(()=>traer(true),10000);
 setInterval(()=>{ if(enNube()&&!enVuelo) marcarConexion(conectado); },5000);
